@@ -940,11 +940,11 @@ static double computeDisplaySigma(DnsDeviceState* S, int comp)
 static bool launchStableStepGraph(DnsDeviceState* S, int count)
 {
     static bool graph_disabled = false;
+    static cudaStream_t graph_stream = nullptr;
     if (!S || count <= 0 || graph_disabled || dnsPhaseTimingEnabled()) {
         return false;
     }
 
-    cudaStream_t stream = nullptr;
     cudaGraph_t graph = nullptr;
     cudaGraphExec_t graph_exec = nullptr;
 
@@ -955,40 +955,41 @@ static bool launchStableStepGraph(DnsDeviceState* S, int count)
         if (graph_exec) cudaGraphExecDestroy(graph_exec);
         if (graph) cudaGraphDestroy(graph);
         dnsCudaSetStream(S, 0);
-        if (stream) cudaStreamDestroy(stream);
         return false;
     };
 
-    cudaError_t err = cudaStreamCreate(&stream);
-    if (err != cudaSuccess) return fail("cudaStreamCreate", err);
+    cudaError_t err = cudaSuccess;
+    if (!graph_stream) {
+        err = cudaStreamCreate(&graph_stream);
+        if (err != cudaSuccess) return fail("cudaStreamCreate", err);
+    }
 
-    dnsCudaSetStream(S, stream);
+    dnsCudaSetStream(S, graph_stream);
 
-    err = cudaStreamBeginCapture(stream, cudaStreamCaptureModeRelaxed);
+    err = cudaStreamBeginCapture(graph_stream, cudaStreamCaptureModeRelaxed);
     if (err != cudaSuccess) return fail("cudaStreamBeginCapture", err);
 
     dnsCudaStep2B(S);
     dnsCudaStep3(S);
     dnsCudaStep2A(S);
 
-    err = cudaStreamEndCapture(stream, &graph);
+    err = cudaStreamEndCapture(graph_stream, &graph);
     if (err != cudaSuccess) return fail("cudaStreamEndCapture", err);
 
     err = cudaGraphInstantiate(&graph_exec, graph, nullptr, nullptr, 0);
     if (err != cudaSuccess) return fail("cudaGraphInstantiate", err);
 
     for (int i = 0; i < count; ++i) {
-        err = cudaGraphLaunch(graph_exec, stream);
+        err = cudaGraphLaunch(graph_exec, graph_stream);
         if (err != cudaSuccess) return fail("cudaGraphLaunch", err);
     }
 
-    err = cudaStreamSynchronize(stream);
+    err = cudaStreamSynchronize(graph_stream);
     if (err != cudaSuccess) return fail("cudaStreamSynchronize", err);
 
     cudaGraphExecDestroy(graph_exec);
     cudaGraphDestroy(graph);
     dnsCudaSetStream(S, 0);
-    cudaStreamDestroy(stream);
     return true;
 }
 

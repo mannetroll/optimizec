@@ -1204,7 +1204,7 @@ int main(int argc, char** argv)
     int   N      = 512;
     real  Re     = (real)10000.0f;
     real  K0     = (real)10.0f;
-    int   STEPS  = 1001;
+    int   STEPS  = 20001;
     real  CFL    = (real)0.25f;
     int   UPDATE = 100;
     bool  ADAPT_VISC = false;

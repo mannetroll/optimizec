@@ -29,7 +29,8 @@ LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-} \
 
 Inside Codex, ask it to run:
 
- /usr/lib/wsl/lib/nvidia-smi
+ nvidia-smi
+ nsys --version
  make clean
  make
  ./mem_cuda

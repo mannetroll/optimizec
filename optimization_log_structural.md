@@ -28,3 +28,6 @@
 28 | use cufftMakePlanMany64 for pruned R2C x plan | 96.762 -> 96.694 | reverted
 29 | use cufftMakePlanMany64 for pruned C2R x plan | 96.762 -> 96.670 | reverted
 30 | use cufftMakePlanMany64 for pruned C2C z plan | 96.762 -> 96.791 | kept
+31 | use contiguous scratch for STEP2B C2C z FFT | 96.791 -> output changed | reverted
+32 | use 32x8 blocks for STEP2B uiuj build | 96.791 -> 96.765 | reverted
+33 | pad UC_full spectral pitch to even complex stride | 96.791 -> 97.664 | kept

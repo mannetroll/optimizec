@@ -94,7 +94,7 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
     // Future full 3/2 grid (Fortran-style). We just store these now.
     S->NX_full = 3*S->Nbase/2;      // 3N/2 (e.g. 192)
     S->NZ_full = 3*S->Nbase/2;      // 3N/2
-    S->NK_full = 3*S->Nbase/4 + 1;  // same spectral width as NK
+    S->NK_full = 3*S->Nbase/4 + 2;  // padded pitch for 3N/4+1 spectral values
 
     S->Re   = Re;
     S->K0   = K0;
@@ -191,6 +191,8 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
     //   idist/odist = per-component plane stride
     // ------------------------------------------------------------------
     int n_2d[2] = { S->NZ_full, S->NX_full };
+    int inembed_r2c_2d[2] = { S->NZ_full, S->NX_full };
+    int onembed_r2c_2d[2] = { S->NZ_full, S->NK_full };
     int idist_r2c = S->NZ_full * S->NX_full;
     int odist_r2c = S->NZ_full * S->NK_full;
     int n_x[1] = { S->NX_full };
@@ -261,8 +263,8 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
                     "cufftMakePlanMany64(plan_full_c2c_z)")) return fail();
     if (!checkCufft(cufftMakePlanMany(S->plan_full_r2c_2d,
                                       2, n_2d,
-                                      nullptr, 1, idist_r2c,
-                                      nullptr, 1, odist_r2c,
+                                      inembed_r2c_2d, 1, idist_r2c,
+                                      onembed_r2c_2d, 1, odist_r2c,
                                       CUFFT_R2C, 3,
                                       &work_r2c),
                     "cufftMakePlanMany(plan_full_r2c_2d)")) return fail();

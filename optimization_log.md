@@ -54,3 +54,4 @@
 54 | use 256x1 block for split STEP2A high-kx zero kernel at N=16384 | 5.453 -> 5.452 | reverted
 55 | use 128x2 block for split STEP2A z-reshuffle kernel at N=16384 | 5.453 -> 5.452 | reverted
 56 | use 64x2 blocks for split STEP2A prepare kernels at N=16384 | 5.453 -> 5.451 | reverted
+57 | split STEP3 into low/high-z half launches for N=16384 | 5.453 -> 5.452 | reverted

@@ -20,3 +20,4 @@
 20 | skip stable-step graph grouping block for N>=4096 | 81.414 -> 81.401 | reverted
 21 | use cuFFT Xt typed interface for STEP2B forward R2C plan | 81.377 -> 81.372 | reverted
 22 | prune STEP2B z FFT to kx<N/2 columns | 81.377 -> 89.880 | kept
+23 | prune STEP2A inverse z FFT to kx<N/2 columns | 89.880 -> 96.762 | kept

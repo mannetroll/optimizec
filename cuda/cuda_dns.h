@@ -192,6 +192,7 @@ void dnsCudaSnapshot(const DnsDeviceState *S,
 // ===============================================================
 void vfft_full_inverse_uc_full_to_ur_full(DnsDeviceState *S);
 void vfft_full_forward_ur_full_to_uc_full(DnsDeviceState *S);
+void vfft_step2a_inverse_uc_needed_to_ur_full(DnsDeviceState *S);
 void vfft_step2b_forward_ur_full_to_uc_needed(DnsDeviceState *S);
 
 

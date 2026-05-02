@@ -181,7 +181,7 @@ void dnsCudaStep2A_full_debug(DnsDeviceState *S)
 
     // 3) Full inverse FFT: UC_full → UR_full (3/2 grid)
     DNS_PHASE_TIME(DNS_PHASE_STEP2A_FFT, {
-        vfft_full_inverse_uc_full_to_ur_full(S);
+        vfft_step2a_inverse_uc_needed_to_ur_full(S);
     });
 }
 

@@ -205,6 +205,10 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
                     "cufftCreate(plan_full_r2c_x)")) return fail();
     if (!checkCufft(cufftSetAutoAllocation(S->plan_full_r2c_x, 0),
                     "cufftSetAutoAllocation(plan_full_r2c_x)")) return fail();
+    if (!checkCufft(cufftCreate(&S->plan_full_c2r_x),
+                    "cufftCreate(plan_full_c2r_x)")) return fail();
+    if (!checkCufft(cufftSetAutoAllocation(S->plan_full_c2r_x, 0),
+                    "cufftSetAutoAllocation(plan_full_c2r_x)")) return fail();
     if (!checkCufft(cufftCreate(&S->plan_full_c2c_z),
                     "cufftCreate(plan_full_c2c_z)")) return fail();
     if (!checkCufft(cufftSetAutoAllocation(S->plan_full_c2c_z, 0),
@@ -230,6 +234,7 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
 
     size_t work_r2c = 0;
     size_t work_r2c_x = 0;
+    size_t work_c2r_x = 0;
     size_t work_c2c_z = 0;
     size_t work_c2r = 0;
     size_t work_c2r_one = 0;
@@ -240,6 +245,13 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
                                       CUFFT_R2C, 3 * S->NZ_full,
                                       &work_r2c_x),
                     "cufftMakePlanMany(plan_full_r2c_x)")) return fail();
+    if (!checkCufft(cufftMakePlanMany(S->plan_full_c2r_x,
+                                      1, n_x,
+                                      onembed_x, 1, S->NK_full,
+                                      inembed_x, 1, S->NX_full,
+                                      CUFFT_C2R, 2 * S->NZ_full,
+                                      &work_c2r_x),
+                    "cufftMakePlanMany(plan_full_c2r_x)")) return fail();
     if (!checkCufft(cufftMakePlanMany(S->plan_full_c2c_z,
                                       1, n_z,
                                       embed_z, S->NK_full, 1,
@@ -271,11 +283,13 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
                                       &work_c2r_one),
                     "cufftMakePlanMany(plan_full_c2r_2d_one)")) return fail();
 
-    S->fft_work_size = std::max(std::max(work_r2c, work_r2c_x),
-                                std::max(work_c2c_z, std::max(work_c2r, work_c2r_one)));
-    std::printf(" cuFFT work: R2C=%.2f MiB R2Cx=%.2f MiB C2Cz=%.2f MiB C2R2=%.2f MiB C2R1=%.2f MiB shared=%.2f MiB\n",
+    S->fft_work_size = std::max(
+        std::max(std::max(work_r2c, work_r2c_x), work_c2r_x),
+        std::max(work_c2c_z, std::max(work_c2r, work_c2r_one)));
+    std::printf(" cuFFT work: R2C=%.2f MiB R2Cx=%.2f MiB C2Rx=%.2f MiB C2Cz=%.2f MiB C2R2=%.2f MiB C2R1=%.2f MiB shared=%.2f MiB\n",
                 work_r2c / (1024.0 * 1024.0),
                 work_r2c_x / (1024.0 * 1024.0),
+                work_c2r_x / (1024.0 * 1024.0),
                 work_c2c_z / (1024.0 * 1024.0),
                 work_c2r / (1024.0 * 1024.0),
                 work_c2r_one / (1024.0 * 1024.0),
@@ -284,6 +298,8 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
         if (!alloc(&S->d_fft_work, S->fft_work_size, "d_fft_work")) return fail();
         if (!checkCufft(cufftSetWorkArea(S->plan_full_r2c_x, S->d_fft_work),
                         "cufftSetWorkArea(plan_full_r2c_x)")) return fail();
+        if (!checkCufft(cufftSetWorkArea(S->plan_full_c2r_x, S->d_fft_work),
+                        "cufftSetWorkArea(plan_full_c2r_x)")) return fail();
         if (!checkCufft(cufftSetWorkArea(S->plan_full_c2c_z, S->d_fft_work),
                         "cufftSetWorkArea(plan_full_c2c_z)")) return fail();
         if (!checkCufft(cufftSetWorkArea(S->plan_full_r2c_2d, S->d_fft_work),

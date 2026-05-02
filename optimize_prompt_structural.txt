@@ -1,0 +1,48 @@
+ You are optimizing the CUDA solver in cuda/*.cu for FPS while keeping output equal to sim_output_512_1001_gpu.txt.
+
+  Current state:
+  - The repo already has optimization_log.md with many failed micro-opts.
+  - Do not repeat prior failed experiments from the log.
+  - Recent blind block-size/cache/restrict tweaks mostly failed.
+  - Switch strategy to phase timing and structural optimizations.
+
+  Run with:
+  make
+  ./mem_cuda
+
+  Workflow:
+  1. First add lightweight CUDA event phase timing, disabled by default and enabled with an env var such as PHASE_TIMING=1.
+     Time at least:
+     - STEP2B uiuj build
+     - STEP2B forward cuFFT
+     - STEP2B middle zero
+     - STEP3 fused kernel
+     - STEP2A prepare
+     - STEP2A inverse cuFFT
+     - NEXTDT/CFLM
+     - OM2PHYS
+     - display sigma
+  2. Run PHASE_TIMING=1 ./mem_cuda once and identify the largest bottleneck by measured GPU/phase time.
+  3. Propose ONE concrete optimization based on that timing. State the hypothesis.
+  4. Implement only that one change.
+  5. Run ./mem_cuda 3 times and average Steady FPS.
+  6. Verify final numeric output still matches the baseline behavior.
+  7. If average FPS improves versus previous best, keep it, commit it, and log:
+     <iteration> | <change> | <before> -> <after> | kept
+  8. If not improved, revert the code change and log:
+     <iteration> | <change> | <before> -> <after> | reverted
+  9. Continue until 10 consecutive non-kept iterations or 50 total iterations.
+
+  Prioritize these structural attempts after phase timing, one at a time:
+  - Proper CUDA graph replay using an explicit stream and cufftSetStream on all cuFFT plans; instantiate once, replay only when scalar parameters are stable.
+  - Move timestep scalar parameters needed by kernels to device memory if that enables graph replay safely.
+  - Reduce diagnostic synchronization/copies only if phase timing proves diagnostics dominate.
+  - Rework OM2PHYS setup only if measured as a bottleneck.
+  - Investigate cuFFT plan/layout/batching changes only if transform phases dominate.
+
+  Rules:
+  - Do not ask for confirmation between iterations.
+  - Do not keep changes that only improve one noisy run but lose on the 3-run average.
+  - Keep default ./mem_cuda behavior and output unchanged.
+  - Avoid committing disabled instrumentation unless it has no default FPS cost and helps future profiling.
+  - Report final best version, commits, and the appended optimization_log.md entries when done.

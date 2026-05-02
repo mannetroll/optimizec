@@ -11,53 +11,6 @@ using real = float;
 using cplx = cufftComplex;
 
 // ===============================================================
-// Optional phase timing hooks
-// ===============================================================
-enum DnsPhaseId
-{
-    DNS_PHASE_STEP2B_BUILD = 0,
-    DNS_PHASE_STEP2B_FFT,
-    DNS_PHASE_STEP2B_ZERO_MIDDLE,
-    DNS_PHASE_STEP3,
-    DNS_PHASE_STEP2A_PREPARE,
-    DNS_PHASE_STEP2A_FFT,
-    DNS_PHASE_NEXTDT_CFLM,
-    DNS_PHASE_OM2PHYS,
-    DNS_PHASE_DISPLAY_SIGMA,
-    DNS_PHASE_COUNT
-};
-
-extern bool g_dns_phase_timing_enabled;
-bool dnsPhaseTimingEnabled();
-void dnsPhaseTimingSetEnabled(bool enabled);
-void dnsPhaseTimingReset();
-void dnsPhaseTimingAdd(DnsPhaseId id, float ms);
-void dnsPhaseTimingReport();
-
-#define DNS_PHASE_TIME(ID, ...)                                             \
-    do {                                                                     \
-        if (dnsPhaseTimingEnabled()) {                                       \
-            cudaEvent_t _dns_phase_start;                                    \
-            cudaEvent_t _dns_phase_stop;                                     \
-            cudaEventCreate(&_dns_phase_start);                              \
-            cudaEventCreate(&_dns_phase_stop);                               \
-            cudaEventRecord(_dns_phase_start, 0);                            \
-            do { __VA_ARGS__ } while (0);                                    \
-            cudaEventRecord(_dns_phase_stop, 0);                             \
-            cudaEventSynchronize(_dns_phase_stop);                           \
-            float _dns_phase_ms = 0.0f;                                      \
-            cudaEventElapsedTime(&_dns_phase_ms,                             \
-                                 _dns_phase_start,                           \
-                                 _dns_phase_stop);                           \
-            dnsPhaseTimingAdd((ID), _dns_phase_ms);                          \
-            cudaEventDestroy(_dns_phase_stop);                               \
-            cudaEventDestroy(_dns_phase_start);                              \
-        } else {                                                             \
-            do { __VA_ARGS__ } while (0);                                    \
-        }                                                                    \
-    } while (0)
-
-// ===============================================================
 // Row-major indexing macros (Option B.1 layout = YOUR CURRENT LAYOUT)
 // ---------------------------------------------------------------
 // UR[z][x][comp]  → linear: (comp) + 3*((x) + NX*(z))
@@ -192,8 +145,6 @@ void dnsCudaSnapshot(const DnsDeviceState *S,
 // ===============================================================
 void vfft_full_inverse_uc_full_to_ur_full(DnsDeviceState *S);
 void vfft_full_forward_ur_full_to_uc_full(DnsDeviceState *S);
-void vfft_step2a_inverse_uc_needed_to_ur_full(DnsDeviceState *S);
-void vfft_step2b_forward_ur_full_to_uc_needed(DnsDeviceState *S);
 
 
 // ===============================================================

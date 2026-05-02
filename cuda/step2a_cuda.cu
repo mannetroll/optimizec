@@ -163,7 +163,7 @@ void dnsCudaStep2A_full_debug(DnsDeviceState *S)
 
     // 1) Dealias high-kx band and z-reshuffle low-kz strip.
     {
-        dim3 block(96, 2);
+        dim3 block(32, 8);
         int nx_start = N / 2;
         int nx_end   = 3 * N / 4;
         int nx_len   = nx_end - nx_start + 1;
@@ -172,17 +172,13 @@ void dnsCudaStep2A_full_debug(DnsDeviceState *S)
         dim3 grid((work_x  + block.x - 1) / block.x,
                   (NZ_full + block.y - 1) / block.y);
 
-        DNS_PHASE_TIME(DNS_PHASE_STEP2A_PREPARE, {
-            k_step2a_full_prepare<<<grid, block>>>(
-                S->d_uc_full, N, NZ_full, NK_full
-            );
-        });
+        k_step2a_full_prepare<<<grid, block>>>(
+            S->d_uc_full, N, NZ_full, NK_full
+        );
     }
 
     // 3) Full inverse FFT: UC_full → UR_full (3/2 grid)
-    DNS_PHASE_TIME(DNS_PHASE_STEP2A_FFT, {
-        vfft_step2a_inverse_uc_needed_to_ur_full(S);
-    });
+    vfft_full_inverse_uc_full_to_ur_full(S);
 }
 
 // ---------------------------------------------------------------------

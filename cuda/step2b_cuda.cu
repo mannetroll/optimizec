@@ -44,6 +44,9 @@
 #include <cuda_runtime.h>
 #include <cstdio>
 
+// Forward declaration from vfft_cuda.cu (existing full-grid FFT helper)
+extern void vfft_full_forward_ur_full_to_uc_full(DnsDeviceState *S);
+
 // ---------------------------------------------------------------------
 // Kernel 1: build uiuj on the full 3/2 grid
 //
@@ -199,20 +202,19 @@ void dnsCudaStep2B(DnsDeviceState *S)
     dim3 grid(((NX_full / 2) + block.x - 1) / block.x,
               (NZ_full + block.y - 1) / block.y);
 
-    DNS_PHASE_TIME(DNS_PHASE_STEP2B_BUILD, {
-        k_step2b_build_uiuj_vec2<<<grid, block>>>(S->d_ur_full,
-                                                  NX_full,
-                                                  NZ_full);
-    });
+    k_step2b_build_uiuj_vec2<<<grid, block>>>(S->d_ur_full,
+                                              NX_full,
+                                              NZ_full);
 
     // 2) Full-grid forward FFT: UR_full → UC_full (3 components)
     //    This is the CUDA equivalent of Fortran's:
     //      VRFFTF (X-direction, 3*NX/2)
     //      VCFFTF (Z-direction, 3*NZ/2)
     //
-    DNS_PHASE_TIME(DNS_PHASE_STEP2B_FFT, {
-        vfft_step2b_forward_ur_full_to_uc_needed(S);
-    });
+    //    vfft_full_forward_ur_full_to_uc_full(S) is assumed to:
+    //      • use CUFFT_R2C along X for all 3 components, and
+    //      • then CUFFT_C2C (forward) along Z for all 3 components.
+    vfft_full_forward_ur_full_to_uc_full(S);
 
     // 3) Zero UC(X,NZ+1,I) for X<=NX/2, I=1..3
     const int NX_half = S->Nbase / 2;  // NX/2
@@ -221,11 +223,9 @@ void dnsCudaStep2B(DnsDeviceState *S)
     dim3 block2(256);
     dim3 grid2((NX_half + block2.x - 1) / block2.x);
 
-    DNS_PHASE_TIME(DNS_PHASE_STEP2B_ZERO_MIDDLE, {
-        k_step2b_zero_middle<<<grid2, block2>>>(S->d_uc_full,
-                                                NX_half,
-                                                NZ,
-                                                S->NK_full,
-                                                S->NZ_full);
-    });
+    k_step2b_zero_middle<<<grid2, block2>>>(S->d_uc_full,
+                                            NX_half,
+                                            NZ,
+                                            S->NK_full,
+                                            S->NZ_full);
 }

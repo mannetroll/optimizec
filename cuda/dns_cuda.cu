@@ -94,7 +94,7 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
     // Future full 3/2 grid (Fortran-style). We just store these now.
     S->NX_full = 3*S->Nbase/2;      // 3N/2 (e.g. 192)
     S->NZ_full = 3*S->Nbase/2;      // 3N/2
-    S->NK_full = 3*S->Nbase/4 + 4;  // padded pitch for 3N/4+1 spectral values
+    S->NK_full = 3*S->Nbase/4 + 1;  // same spectral width as NK
 
     S->Re   = Re;
     S->K0   = K0;
@@ -191,30 +191,13 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
     //   idist/odist = per-component plane stride
     // ------------------------------------------------------------------
     int n_2d[2] = { S->NZ_full, S->NX_full };
-    int inembed_r2c_2d[2] = { S->NZ_full, S->NX_full };
-    int onembed_r2c_2d[2] = { S->NZ_full, S->NK_full };
+    int inembed_r2c[2] = { S->NZ_full, S->NX_full };
+    int onembed_r2c[2] = { S->NZ_full, S->NK_full };
     int idist_r2c = S->NZ_full * S->NX_full;
     int odist_r2c = S->NZ_full * S->NK_full;
-    int n_x[1] = { S->NX_full };
-    int inembed_x[1] = { S->NX_full };
-    int onembed_x[1] = { S->NK_full };
-    long long n_z_ll[1] = { S->NZ_full };
-    long long embed_z_ll[1] = { S->NZ_full };
 
     S->owns_plans = true;
 
-    if (!checkCufft(cufftCreate(&S->plan_full_r2c_x),
-                    "cufftCreate(plan_full_r2c_x)")) return fail();
-    if (!checkCufft(cufftSetAutoAllocation(S->plan_full_r2c_x, 0),
-                    "cufftSetAutoAllocation(plan_full_r2c_x)")) return fail();
-    if (!checkCufft(cufftCreate(&S->plan_full_c2r_x),
-                    "cufftCreate(plan_full_c2r_x)")) return fail();
-    if (!checkCufft(cufftSetAutoAllocation(S->plan_full_c2r_x, 0),
-                    "cufftSetAutoAllocation(plan_full_c2r_x)")) return fail();
-    if (!checkCufft(cufftCreate(&S->plan_full_c2c_z),
-                    "cufftCreate(plan_full_c2c_z)")) return fail();
-    if (!checkCufft(cufftSetAutoAllocation(S->plan_full_c2c_z, 0),
-                    "cufftSetAutoAllocation(plan_full_c2c_z)")) return fail();
     if (!checkCufft(cufftCreate(&S->plan_full_r2c_2d),
                     "cufftCreate(plan_full_r2c_2d)")) return fail();
     if (!checkCufft(cufftSetAutoAllocation(S->plan_full_r2c_2d, 0),
@@ -235,36 +218,12 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
                     "cufftSetAutoAllocation(plan_full_c2r_2d_one)")) return fail();
 
     size_t work_r2c = 0;
-    size_t work_r2c_x = 0;
-    size_t work_c2r_x = 0;
-    size_t work_c2c_z = 0;
     size_t work_c2r = 0;
     size_t work_c2r_one = 0;
-    if (!checkCufft(cufftMakePlanMany(S->plan_full_r2c_x,
-                                      1, n_x,
-                                      inembed_x, 1, S->NX_full,
-                                      onembed_x, 1, S->NK_full,
-                                      CUFFT_R2C, 3 * S->NZ_full,
-                                      &work_r2c_x),
-                    "cufftMakePlanMany(plan_full_r2c_x)")) return fail();
-    if (!checkCufft(cufftMakePlanMany(S->plan_full_c2r_x,
-                                      1, n_x,
-                                      onembed_x, 1, S->NK_full,
-                                      inembed_x, 1, S->NX_full,
-                                      CUFFT_C2R, 2 * S->NZ_full,
-                                      &work_c2r_x),
-                    "cufftMakePlanMany(plan_full_c2r_x)")) return fail();
-    if (!checkCufft(cufftMakePlanMany64(S->plan_full_c2c_z,
-                                        1, n_z_ll,
-                                        embed_z_ll, S->NK_full, 1,
-                                        embed_z_ll, S->NK_full, 1,
-                                        CUFFT_C2C, S->NX / 2,
-                                        &work_c2c_z),
-                    "cufftMakePlanMany64(plan_full_c2c_z)")) return fail();
     if (!checkCufft(cufftMakePlanMany(S->plan_full_r2c_2d,
                                       2, n_2d,
-                                      inembed_r2c_2d, 1, idist_r2c,
-                                      onembed_r2c_2d, 1, odist_r2c,
+                                      inembed_r2c, 1, idist_r2c,
+                                      onembed_r2c, 1, odist_r2c,
                                       CUFFT_R2C, 3,
                                       &work_r2c),
                     "cufftMakePlanMany(plan_full_r2c_2d)")) return fail();
@@ -285,25 +244,14 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
                                       &work_c2r_one),
                     "cufftMakePlanMany(plan_full_c2r_2d_one)")) return fail();
 
-    S->fft_work_size = std::max(
-        std::max(std::max(work_r2c, work_r2c_x), work_c2r_x),
-        std::max(work_c2c_z, std::max(work_c2r, work_c2r_one)));
-    std::printf(" cuFFT work: R2C=%.2f MiB R2Cx=%.2f MiB C2Rx=%.2f MiB C2Cz=%.2f MiB C2R2=%.2f MiB C2R1=%.2f MiB shared=%.2f MiB\n",
+    S->fft_work_size = std::max(work_r2c, std::max(work_c2r, work_c2r_one));
+    std::printf(" cuFFT work: R2C=%.2f MiB C2R2=%.2f MiB C2R1=%.2f MiB shared=%.2f MiB\n",
                 work_r2c / (1024.0 * 1024.0),
-                work_r2c_x / (1024.0 * 1024.0),
-                work_c2r_x / (1024.0 * 1024.0),
-                work_c2c_z / (1024.0 * 1024.0),
                 work_c2r / (1024.0 * 1024.0),
                 work_c2r_one / (1024.0 * 1024.0),
                 S->fft_work_size / (1024.0 * 1024.0));
     if (S->fft_work_size > 0) {
         if (!alloc(&S->d_fft_work, S->fft_work_size, "d_fft_work")) return fail();
-        if (!checkCufft(cufftSetWorkArea(S->plan_full_r2c_x, S->d_fft_work),
-                        "cufftSetWorkArea(plan_full_r2c_x)")) return fail();
-        if (!checkCufft(cufftSetWorkArea(S->plan_full_c2r_x, S->d_fft_work),
-                        "cufftSetWorkArea(plan_full_c2r_x)")) return fail();
-        if (!checkCufft(cufftSetWorkArea(S->plan_full_c2c_z, S->d_fft_work),
-                        "cufftSetWorkArea(plan_full_c2c_z)")) return fail();
         if (!checkCufft(cufftSetWorkArea(S->plan_full_r2c_2d, S->d_fft_work),
                         "cufftSetWorkArea(plan_full_r2c_2d)")) return fail();
         if (!checkCufft(cufftSetWorkArea(S->plan_full_c2r_2d, S->d_fft_work),

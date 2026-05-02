@@ -166,7 +166,7 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
 
     const size_t sigma_total = (size_t)S->NX_full * (size_t)S->NZ_full;
     const size_t sigma_min_blocks = (sigma_total + 255u) / 256u;
-    S->sigma_num_blocks = (int)std::min<size_t>(4096u,
+    S->sigma_num_blocks = (int)std::min<size_t>(1024u,
                                                 std::max<size_t>(1u, sigma_min_blocks));
     if (!alloc(reinterpret_cast<void**>(&S->d_sigma_minmax),
                (size_t)S->sigma_num_blocks * 2u * sizeof(real),

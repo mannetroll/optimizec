@@ -6,3 +6,6 @@
 6 | remove dead DEN zero guard in STEP3 | 8014.892 -> 8069.238 | kept
 7 | compute display sigma with persistent GPU reductions | 8069.238 -> 8441.688 | kept
 8 | replace CFLM atomic reduction with per-block max reduction | 8441.688 -> 8887.644 | kept
+9 | fuse OM2PHYS clear/copy/reshuffle setup | 8887.644 -> 8615.068 | reverted
+10 | use 32x8 blocks for OM2PHYS setup kernels | 8887.644 -> 8660.987 | reverted
+11 | cap display sigma reductions at 1024 blocks | 8887.644 -> 8895.321 | kept

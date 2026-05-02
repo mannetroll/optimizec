@@ -24,7 +24,7 @@ when done.
 If that still does not expose CUDA, use the full bypass mode:
 
 LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-} \
-  PATH=/usr/local/cuda/bin:/usr/lib/wsl/lib:$PATH \
+  PATH=/usr/local/bin:/usr/local/cuda/bin:/usr/lib/wsl/lib:$PATH \
   codex --dangerously-bypass-approvals-and-sandbox -c shell_environment_policy.inherit=all
 
 Inside Codex, ask it to run:

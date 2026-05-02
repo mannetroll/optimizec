@@ -20,3 +20,6 @@
 20 | vectorize STEP2B uiuj build across x pairs | 8552.225 -> 8732.283 | kept
 21 | vectorize STEP2B uiuj build across x quads | 8732.283 -> 8685.888 | reverted
 22 | use 64x4 blocks for STEP3 only | 8732.283 -> 8757.972 | kept
+23 | add restrict qualifiers to STEP3 arrays | 8757.972 -> 8717.399 | reverted
+24 | use 64x4 blocks for STEP2B vec2 build | 8757.972 -> 8541.963 | reverted
+25 | use 64x4 blocks for STEP2A prepare only | 8757.972 -> 8759.579 | kept

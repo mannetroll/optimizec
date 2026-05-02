@@ -10,7 +10,7 @@ mpv --vo=x11 --hwdec=no --vf=scale=1024:1024 Ω_Inferno_0327.mp4
 # RTX 3090
 nohup stdbuf -oL ./mem_cuda 16384 1E6 2 2001 0.2 200 1 > mem_cuda.log 2>&1 &
 
-export RUN_DIR=/home/tobbe/sim_16384_10
+export RUN_DIR=/home/tobbe/sim_16384_5
 export BIN=/home/tobbe/dev/cudaturbo/mem_cuda
 export SNAPSHOT_INTERVAL=1h
 export N=16384
@@ -20,11 +20,11 @@ export CFL=0.15
 export UPDATE=500
 export ADAPT_VISC=1
 export MOV=1
-export MOV_DIR=/home/tobbe/sim_16384_10
+export MOV_DIR=/home/tobbe/sim_16384_5
 /home/tobbe/dev/cudaturbo/tools/run_hourly_snapshots.sh
 
-ps -p "$(cat /home/tobbe/sim_16384_10/mem_cuda.pid)" -o pid,cmd
-tail -f /home/tobbe/sim_16384_10/mem_cuda.txt
+ps -p "$(cat /home/tobbe/sim_16384_5/mem_cuda.pid)" -o pid,cmd
+tail -f /home/tobbe/sim_16384_5/mem_cuda.txt
 
 # H100 80GB
 make clean

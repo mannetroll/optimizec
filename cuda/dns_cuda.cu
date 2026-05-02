@@ -357,16 +357,12 @@ void k_cfl_scan_full(const float *ur, int Ncells,
 // ======================================================================
 
 __global__
-void k_cflm_reset(float *out)
-{
-    if (threadIdx.x == 0 && blockIdx.x == 0) out[0] = 0.0f;
-}
-
-__global__
 void k_cflm_reduce_ur_full(const float *ur_full, size_t plane,
                            float dx, float dz,
-                           float *out_max)
+                           float *out_blocks)
 {
+    __shared__ float s_max[256];
+
     int tid = threadIdx.x;
     size_t idx = (size_t)blockIdx.x * (size_t)blockDim.x + (size_t)tid;
 
@@ -382,10 +378,21 @@ void k_cflm_reduce_ur_full(const float *ur_full, size_t plane,
     for (int s = 16; s > 0; s >>= 1)
         m = fmaxf(m, __shfl_down_sync(0xffffffff, m, s));
 
-    // Lane 0 of each warp does an atomicMax on the global result.
-    // atomicMax on int bit-casts of non-negative floats gives max(fabsf).
-    if ((tid & 31) == 0) {
-        atomicMax(reinterpret_cast<int*>(out_max), __float_as_int(m));
+    s_max[tid] = ((tid & 31) == 0) ? m : 0.0f;
+    __syncthreads();
+
+    if (tid < 8) {
+        m = s_max[tid * 32];
+    } else {
+        m = 0.0f;
+    }
+
+    for (int s = 4; s > 0; s >>= 1) {
+        m = fmaxf(m, __shfl_down_sync(0xffffffff, m, s));
+    }
+
+    if (tid == 0) {
+        out_blocks[blockIdx.x] = m;
     }
 }
 
@@ -395,15 +402,17 @@ static float gpu_compute_cflm(DnsDeviceState *S, float dx, float dz)
     const int block = 256;
     const int grid  = (int)((plane + (size_t)block - 1) / (size_t)block);
 
-    // Zero the scratch output location (scratch[0])
-    k_cflm_reset<<<1, 1>>>(S->d_cflm_scratch);
-
     k_cflm_reduce_ur_full<<<grid, block>>>(
         S->d_ur_full, plane, dx, dz, S->d_cflm_scratch);
 
-    float h_cflm = 0.0f;
-    cudaMemcpy(&h_cflm, S->d_cflm_scratch, sizeof(float),
+    std::vector<float> block_max((size_t)grid);
+    cudaMemcpy(block_max.data(), S->d_cflm_scratch, block_max.size() * sizeof(float),
                cudaMemcpyDeviceToHost);
+
+    float h_cflm = 0.0f;
+    for (float v : block_max) {
+        h_cflm = fmaxf(h_cflm, v);
+    }
     return h_cflm;
 }
 

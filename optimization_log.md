@@ -5,3 +5,4 @@
 5 | read STEP2B middle row as zero inside STEP3 | 8013.856 -> 7872.452 | reverted
 6 | remove dead DEN zero guard in STEP3 | 8014.892 -> 8069.238 | kept
 7 | compute display sigma with persistent GPU reductions | 8069.238 -> 8441.688 | kept
+8 | replace CFLM atomic reduction with per-block max reduction | 8441.688 -> 8887.644 | kept

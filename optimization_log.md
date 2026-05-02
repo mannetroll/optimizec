@@ -52,3 +52,4 @@
 52 | split STEP2A prepare zero-high-kx and z-reshuffle domains for N=16384 | 5.447 -> 5.453 | kept
 53 | use cudaMemset2DAsync for STEP2A high-kx zero band at N=16384 | 5.453 -> 5.452 | reverted
 54 | use 256x1 block for split STEP2A high-kx zero kernel at N=16384 | 5.453 -> 5.452 | reverted
+55 | use 128x2 block for split STEP2A z-reshuffle kernel at N=16384 | 5.453 -> 5.452 | reverted

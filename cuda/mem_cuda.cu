@@ -1790,10 +1790,10 @@ int main(int argc, char** argv)
     installExitSignalHandlers();
 
     // Defaults (dns_fps.f-style)
-    int   N      = 512;
+    int   N      = 4096;
     real  Re     = (real)10000.0f;
     real  K0     = (real)10.0f;
-    int   STEPS  = 20001;
+    int   STEPS  = 501;
     real  CFL    = (real)0.25f;
     int   UPDATE = 100;
     bool  ADAPT_VISC = false;
@@ -2210,11 +2210,11 @@ int main(int argc, char** argv)
                          omega_sigma,
                          elap,
                          start_iter);
-    }
 
-    if (!dumpRunOutputs(&S, csv_rows, N, K0, Re, CFL, update_interval, elap, fps)) {
-        dnsCudaDestroy(&S);
-        return 1;
+        if (!dumpRunOutputs(&S, csv_rows, N, K0, Re, CFL, update_interval, elap, fps)) {
+            dnsCudaDestroy(&S);
+            return 1;
+        }
     }
 
     dnsCudaDestroy(&S);

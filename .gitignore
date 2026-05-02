@@ -1,0 +1,40 @@
+# ----------------------------
+# Project virtual environments
+# ----------------------------
+.venv/
+.uv_cache/
+
+# ----------------------------
+# PyCharm / IntelliJ IDE files
+# ----------------------------
+.idea/
+# (Optionally keep run configs — uncomment below if desired)
+# !.idea/runConfigurations/
+
+# ----------------------------
+# Python general ignores
+# ----------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.pkl
+*.egg-info/
+*.egg
+*.log
+*.csv
+
+# ----------------------------
+# OS / Editor files
+# ----------------------------
+mem_cuda
+/output_*
+.DS_Store
+Thumbs.db
+*.png
+*.o
+*.pgm
+*.out
+*.bin
+

@@ -1,0 +1,33 @@
+You are optimizing the solver in cuda/*.cu for GPU.
+
+Goal: optimize FPS, Frames / Second
+while keeping output results equal to baseline: sim_output_512_1001_gpu.txt
+Run with: (make; ./mem_cuda)
+
+Loop until you cannot improve for 5 consecutive iterations OR you've completed 20 iterations:
+1. Run the baseline benchmark and record the current <metric>.
+2. Profile or analyze to identify the single biggest bottleneck.
+3. Propose ONE concrete change. State your hypothesis for why it will help.
+4. Implement the change.
+5. Run tests. If they fail, revert and try a different change.
+6. Re-run the benchmark. Compare to the previous best.
+7. If improved, commit with a message describing the change and the delta.
+   If not improved, revert.
+8. Append a one-line summary to optimization_log.md:
+   <iteration> | <change> | <before> -> <after> | kept/reverted
+9. Continue.
+
+Do not ask for confirmation between iterations. Do not stop early to summarize
+unless the stopping condition is met. Report the final best version and the log
+when done.
+
+If that still does not expose CUDA, use the full bypass mode:
+
+LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-} \
+  codex --dangerously-bypass-approvals-and-sandbox -c shell_environment_policy.inherit=all
+
+Inside Codex, ask it to run:
+
+ make clean
+ make
+ ./mem_cuda

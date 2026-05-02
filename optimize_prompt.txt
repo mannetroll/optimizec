@@ -1,7 +1,7 @@
 You are optimizing the solver in cuda/*.cu for GPU.
 
-Goal: optimize FPS, Frames / Second for N=4096 and higher (up from N=512)
-while keeping output results equal to baseline: sim_output_4096_501_gpu.txt
+Goal: optimize FPS, Frames / Second for N=16384 and higher (up from N=4096)
+while keeping output results equal to baseline: sim_output_16384_101_gpu.txt
 Run with: (make; ./mem_cuda)
 
 Loop until you cannot improve for 10 consecutive iterations OR you've completed 50 iterations:

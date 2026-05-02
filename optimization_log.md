@@ -59,3 +59,4 @@
 59 | split STEP3 ix=0 special column from main kernel at N=16384 | 5.453 -> 5.450 | reverted
 60 | precompute STEP3 UC_full plane/base offsets at N=16384 | 5.453 -> 5.452 | reverted
 61 | combine split STEP2A prepare domains into one flattened launch at N=16384 | 5.453 -> 5.452 | reverted
+62 | limit STEP2B forward cuFFT work area to inverse-plan size at N=16384 | 5.453 -> 5.452 | reverted

@@ -45,3 +45,4 @@
 45 | use 16x32 blocks for STEP2B uiuj build | 98.354 -> 98.213 | reverted
 46 | use 96x2 blocks for STEP3 fused | 98.354 -> 98.315 | reverted
 47 | use 64x2 blocks for STEP2A prepare | 98.354 -> 98.373 | kept
+48 | use 96x2 blocks for STEP2A prepare | 98.373 -> 98.395 | kept

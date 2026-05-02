@@ -1,0 +1,43 @@
+# movie
+export MOV=1
+export MOV_DIR=/home/tobbe/dev/cudaturbo/mov-test
+stdbuf -oL ./mem_cuda 16384 1E7 2 1001 0.2 200 1 MOV
+
+sudo dnf install -y mpv
+mpv --vo=x11 --hwdec=no Ω_Inferno_0327.mp4
+mpv --vo=x11 --hwdec=no --vf=scale=1024:1024 Ω_Inferno_0327.mp4
+
+# RTX 3090
+nohup stdbuf -oL ./mem_cuda 16384 1E6 2 2001 0.2 200 1 > mem_cuda.log 2>&1 &
+
+export RUN_DIR=/home/tobbe/sim_16384_10
+export BIN=/home/tobbe/dev/cudaturbo/mem_cuda
+export SNAPSHOT_INTERVAL=1h
+export N=16384
+export RE=1E7
+export K0=10
+export CFL=0.15
+export UPDATE=400
+export ADAPT_VISC=1
+export MOV=1
+export MOV_DIR=/home/tobbe/sim_16384_10
+/home/tobbe/dev/cudaturbo/tools/run_hourly_snapshots.sh
+
+ps -p "$(cat /home/tobbe/sim_16384_10/mem_cuda.pid)" -o pid,cmd
+tail -f /home/tobbe/sim_16384_10/mem_cuda.txt
+
+# H100 80GB
+make clean
+make ARCH=sm_90
+strings ./mem_cuda | grep -Eo 'sm_[0-9]+|compute_[0-9]+' | sort -u
+nohup stdbuf -oL ./mem_cuda 29400 1E7 2 2001 0.1 100 1 > mem_cuda.log 2>&1 &
+
+export N=29400
+export RE=1E7
+export K0=2
+export CFL=0.15
+export UPDATE=200
+export ADAPT_VISC=1
+export MOV=1
+/home/ubuntu/cudaturbo/tools/run_hourly_snapshots.sh
+tail -f /opt/dlami/nvme/cudaturboruns/mem_cuda.txt

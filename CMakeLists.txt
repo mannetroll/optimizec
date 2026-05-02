@@ -21,6 +21,7 @@ set(SOURCES
         cuda/color_cuda.cu
         cuda/dns_cuda.cu
         cuda/mem_cuda.cu
+        cuda/om2phys_cuda.cu
         cuda/pao_km3_cuda.cu
         cuda/step2a_cuda.cu
         cuda/step2b_cuda.cu

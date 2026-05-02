@@ -1,0 +1,48 @@
+stdbuf -oL ./mem_cuda 16384 1E6 2 101 0.2 50 0 > sim_output_16384_101_gpu.txt
+
+--- INITIALIZING FPS_CUDA ---
+ N=16384, Re=1000000, K0=2, STEPS=101, CFL=0.200, UPDATE=50, ADAPT_VISC=0, MOV=0
+[GPU] start fields: name, persistence, pstate, sm_clock_mhz, mem_clock_mhz, temp_c, power_w, power_limit_w
+[GPU] start: NVIDIA GeForce RTX 3090, Enabled, P8, 0, 405, 43, 11.84, 370.00
+ cuFFT work: R2C=6912.56 MiB C2R2=4608.38 MiB C2R1=2304.19 MiB shared=6912.56 MiB
+ dnsCudaCreate: GPU memory ≈ 22810.00 MiB
+ Reynolds n. =   1000000.0
+ Energy      =   0.9204225
+ WiWi        =    38.33704
+ Epsilon     =   0.0000383
+ a11         =   0.0160864
+ e11         =   0.0020896
+ Time scale  =  12004.3491
+ Kolmogorov  =   0.0004019
+ Viscosity   =   0.0000010
+ dx/Kol.     =   0.9542553
+ 2Pi/Nlamda  =   7.4615361
+ 2Pi/Lux     =  14.1543922
+ 2Pi/Luz     =  24.7082324
+ 2Pi/Lwx     =  25.0393104
+ 2Pi/Lwz     =  14.3839463
+ Deps.       =   0.0002944
+ Ceps2       =92170.6131913
+ E1          =   1.0000000
+ E3          =   1.0000000
+ PAO seed    =         903
+ PAO-kminus3 initialization OK. VISC=   0.0000010
+ [NEXTDT INIT] CFLM=7856.4638672  DT=   0.0000081  CN=   1.0000000
+ Initial DT=   0.0000081  CN=   1.0000000
+[BENCH] Wall-clock FPS timer starts after initial cudaDeviceSynchronize().
+[BENCH] Steady FPS will exclude the first 50 completed steps (override with BENCH_WARMUP_STEPS).
+ ITERATION      1 T=0.0000081031 DT=0.00000810 CN=0.99999565 CFLM=7856.634277 Re= 1.00000e+06 VISC= 1.00000e-06 PALIN=0 SIG=2 FPS=4.148
+ ITERATION     50 T=0.0004051548 DT=0.00000810 CN=0.99998474 CFLM=7857.097656 Re= 1.00000e+06 VISC= 1.00000e-06 PALIN=0 SIG=2 FPS=5.439
+[BENCH] Steady FPS timer starts after iteration 50.
+ ITERATION    100 T=0.0008103034 DT=0.00000810 CN=0.99999315 CFLM=7856.888672 Re= 1.00000e+06 VISC= 1.00000e-06 PALIN=0 SIG=1 FPS=5.457
+ ITERATION    101 T=0.0008184063 DT=0.00000810 CN=1.00000143 CFLM=7856.618652 Re= 1.00000e+06 VISC= 1.00000e-06 PALIN=0 SIG=1 FPS=5.441
+ Frames per second (FPS)            =    5.4409925
+ Steady frames per second (FPS)     =    5.4428858  (51 steps after warmup)
+ Elapsed time (s):   18.5627897
+ FPS:    5.4409925
+ Steady elapsed time (s):    9.3700294
+ Steady FPS:    5.4428858
+ Final T=   0.0008184  CN=   1.0000014  DT=   0.0000081  VISC=   0.0000010
+[GPU] end fields: name, persistence, pstate, sm_clock_mhz, mem_clock_mhz, temp_c, power_w, power_limit_w
+[GPU] end: NVIDIA GeForce RTX 3090, Enabled, P2, 1935, 9501, 65, 365.48, 370.00
+[OUTPUT] Normal completion; no output files written.

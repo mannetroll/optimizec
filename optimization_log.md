@@ -50,3 +50,4 @@
 50 | enable cuFFT patient JIT for STEP2B forward R2C plan | 81.280 -> 89.150 | reverted (output changed)
 51 | use three single-batch STEP2B forward R2C plans for N=16384 | 5.447 -> output changed | reverted
 52 | split STEP2A prepare zero-high-kx and z-reshuffle domains for N=16384 | 5.447 -> 5.453 | kept
+53 | use cudaMemset2DAsync for STEP2A high-kx zero band at N=16384 | 5.453 -> 5.452 | reverted

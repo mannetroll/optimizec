@@ -4,7 +4,7 @@ Goal: optimize FPS, Frames / Second
 while keeping output results equal to baseline: sim_output_512_1001_gpu.txt
 Run with: (make; ./mem_cuda)
 
-Loop until you cannot improve for 5 consecutive iterations OR you've completed 20 iterations:
+Loop until you cannot improve for 10 consecutive iterations OR you've completed 50 iterations:
 1. Run the baseline benchmark and record the current <metric>.
 2. Profile or analyze to identify the single biggest bottleneck.
 3. Propose ONE concrete change. State your hypothesis for why it will help.

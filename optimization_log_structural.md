@@ -48,3 +48,4 @@
 48 | use 96x2 blocks for STEP2A prepare | 98.373 -> 98.395 | kept
 49 | use 128x1 blocks for STEP2A prepare | 98.395 -> 98.367 | reverted
 50 | use 96x1 blocks for STEP2A prepare | 98.395 -> 98.353 | reverted
+51 | enable Patient JIT for pruned R2C-x plan under tolerant validation | 98.395 -> 109.716 | kept

@@ -131,6 +131,13 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
         }
         return true;
     };
+    auto enablePatientJit = [&](cufftHandle plan, const char *name) -> bool {
+        return checkCufft(cufftSetPlanPropertyInt64(
+                              plan,
+                              NVFFT_PLAN_PROPERTY_INT64_PATIENT_JIT,
+                              1),
+                          name);
+    };
     auto fail = [&]() -> bool {
         dnsCudaDestroy(S);
         return false;
@@ -205,6 +212,8 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
 
     if (!checkCufft(cufftCreate(&S->plan_full_r2c_x),
                     "cufftCreate(plan_full_r2c_x)")) return fail();
+    if (!enablePatientJit(S->plan_full_r2c_x,
+                          "cufftSetPlanPropertyInt64(patient_jit plan_full_r2c_x)")) return fail();
     if (!checkCufft(cufftSetAutoAllocation(S->plan_full_r2c_x, 0),
                     "cufftSetAutoAllocation(plan_full_r2c_x)")) return fail();
     if (!checkCufft(cufftCreate(&S->plan_full_c2r_x),

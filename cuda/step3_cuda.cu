@@ -24,8 +24,8 @@ __device__ inline int om2_idx(int ix, int iz, int NX_half)
 //   1. Read UC_full(ix, z_spec, 0..2)  (uiuj from previous STEP2B)
 //   2. Compute FN and Crank-Nicolson-update OM2, FNM1
 //   3. Reconstruct UC_full(ix, iz, 0..1) from new OM2 (held in register)
-// STEP3 geometry values are computed from alfa/gamma in-register to avoid
-// carrying several multi-GB lookup tables at large N.
+// STEP3 geometry values are computed from integer wavenumbers in-register to
+// avoid per-point alfa/gamma lookup traffic.
 //
 // Safety: each thread writes UC_full[ix, iz, 0..1]; reads UC_full[ix, z_spec, 0..2].
 // Cross-thread: no thread ever reads what another thread writes in the same
@@ -35,8 +35,6 @@ __global__
 void k_step3_fused(cplx *om2,
                    cplx *fnm1,
                    cplx *uc_full,
-                   const real *alfa,
-                   const real *gamma,
                    float divxz,
                    float visc,
                    float dt,
@@ -56,8 +54,8 @@ void k_step3_fused(cplx *om2,
     cplx fn_old = fnm1[idx_om];
 
     // --- phase 1: update OM2 and FNM1 ------------------------------
-    float ax = alfa[ix];
-    float gz = gamma[iz];
+    float ax = (float)ix;
+    float gz = (iz < (NZ / 2)) ? (float)iz : (float)(iz - NZ);
     float A2 = ax * ax;
     float G2 = gz * gz;
     float K2 = A2 + G2;
@@ -158,8 +156,6 @@ void dnsCudaStep3(DnsDeviceState *S)
         S->d_om2,
         S->d_fnm1,
         S->d_uc_full,
-        S->d_alfa,
-        S->d_gamma,
         S->step3_divxz,
         S->visc,
         S->dt,

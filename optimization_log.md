@@ -14,3 +14,6 @@
 14 | use 64x4 blocks for STEP2A/STEP2B/STEP3 | 8895.321 -> 8663.334 | reverted
 15 | move STEP2B middle-row zero into STEP3 with state writeback | 8895.321 -> 8960.900 | reverted (output changed)
 16 | precompute STEP3 time coefficients on host | 8895.321 -> 8881.905 | reverted
+17 | write STEP3 high-z outputs directly in post-reshuffle layout | 8396.441 -> output changed | reverted
+18 | use 32x16 blocks for STEP2A prepare | 8513.859 -> 8769.802 | reverted (profile slower; below prior best)
+19 | compute STEP3 wavenumbers from indices | 8513.859 -> 8552.225 | kept

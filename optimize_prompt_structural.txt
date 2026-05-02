@@ -46,5 +46,3 @@
   - Keep default ./mem_cuda behavior and output unchanged.
   - Avoid committing disabled instrumentation unless it has no default FPS cost and helps future profiling.
   - Report final best version, commits, and the appended optimization_log_structural.md entries when done.
-
-I have roll backed to N=16385, FPS ~ 5, retry all kept optimization!

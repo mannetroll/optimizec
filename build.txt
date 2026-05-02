@@ -7,8 +7,8 @@ sudo dnf install -y mpv
 mpv --vo=x11 --hwdec=no Ω_Inferno_0327.mp4
 mpv --vo=x11 --hwdec=no --vf=scale=1024:1024 Ω_Inferno_0327.mp4
 
-# RTX 3090
-nohup stdbuf -oL ./mem_cuda 16384 1E6 2 2001 0.2 200 1 > mem_cuda.log 2>&1 &
+# RTX 3090 ~ FPS=5.5
+nohup stdbuf -oL ./mem_cuda 16384 1E6 2 401 0.2 200 1 > mem_cuda.log 2>&1 &
 
 export RUN_DIR=/home/tobbe/sim_16384_5
 export BIN=/home/tobbe/dev/cudaturbo/mem_cuda

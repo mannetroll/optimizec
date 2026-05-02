@@ -10,3 +10,4 @@
 10 | use current CUDA graph instantiate overload | 9691.366 -> 9669.772 | reverted
 11 | avoid switching diagnostic cuFFT plan stream in graph path | 9691.366 -> 9629.544 | reverted
 12 | use batch-3 inverse C2R cuFFT plan | 9691.366 -> 8503.376 | reverted
+13 | disable stable-step CUDA graph replay for N>=4096 | 81.353 -> 81.354 | kept

@@ -941,7 +941,8 @@ static bool launchStableStepGraph(DnsDeviceState* S, int count)
 {
     static bool graph_disabled = false;
     static cudaStream_t graph_stream = nullptr;
-    if (!S || count <= 0 || graph_disabled || dnsPhaseTimingEnabled()) {
+    if (!S || count <= 0 || S->Nbase >= 4096 ||
+        graph_disabled || dnsPhaseTimingEnabled()) {
         return false;
     }
 

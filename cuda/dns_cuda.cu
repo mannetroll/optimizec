@@ -196,8 +196,8 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
     int n_x[1] = { S->NX_full };
     int inembed_x[1] = { S->NX_full };
     int onembed_x[1] = { S->NK_full };
-    int n_z[1] = { S->NZ_full };
-    int embed_z[1] = { S->NZ_full };
+    long long n_z_ll[1] = { S->NZ_full };
+    long long embed_z_ll[1] = { S->NZ_full };
 
     S->owns_plans = true;
 
@@ -252,13 +252,13 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
                                       CUFFT_C2R, 2 * S->NZ_full,
                                       &work_c2r_x),
                     "cufftMakePlanMany(plan_full_c2r_x)")) return fail();
-    if (!checkCufft(cufftMakePlanMany(S->plan_full_c2c_z,
-                                      1, n_z,
-                                      embed_z, S->NK_full, 1,
-                                      embed_z, S->NK_full, 1,
-                                      CUFFT_C2C, S->NX / 2,
-                                      &work_c2c_z),
-                    "cufftMakePlanMany(plan_full_c2c_z)")) return fail();
+    if (!checkCufft(cufftMakePlanMany64(S->plan_full_c2c_z,
+                                        1, n_z_ll,
+                                        embed_z_ll, S->NK_full, 1,
+                                        embed_z_ll, S->NK_full, 1,
+                                        CUFFT_C2C, S->NX / 2,
+                                        &work_c2c_z),
+                    "cufftMakePlanMany64(plan_full_c2c_z)")) return fail();
     if (!checkCufft(cufftMakePlanMany(S->plan_full_r2c_2d,
                                       2, n_2d,
                                       nullptr, 1, idist_r2c,

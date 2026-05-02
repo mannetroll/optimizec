@@ -21,3 +21,10 @@
 21 | use cuFFT Xt typed interface for STEP2B forward R2C plan | 81.377 -> 81.372 | reverted
 22 | prune STEP2B z FFT to kx<N/2 columns | 81.377 -> 89.880 | kept
 23 | prune STEP2A inverse z FFT to kx<N/2 columns | 89.880 -> 96.762 | kept
+24 | use cuFFT Xt typed interface for pruned C2C z plan | 96.762 -> 96.739 | reverted
+25 | enable cuFFT patient JIT for pruned C2C z plan | 96.762 -> 96.675 | reverted
+26 | enable cuFFT patient JIT for pruned R2C x plan | 96.762 -> output changed | reverted
+27 | enable cuFFT patient JIT for pruned C2R x plan | 96.762 -> output changed | reverted
+28 | use cufftMakePlanMany64 for pruned R2C x plan | 96.762 -> 96.694 | reverted
+29 | use cufftMakePlanMany64 for pruned C2R x plan | 96.762 -> 96.670 | reverted
+30 | use cufftMakePlanMany64 for pruned C2C z plan | 96.762 -> 96.791 | kept

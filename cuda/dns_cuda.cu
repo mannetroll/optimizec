@@ -192,8 +192,6 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
     //   idist/odist = per-component plane stride
     // ------------------------------------------------------------------
     int n_2d[2] = { S->NZ_full, S->NX_full };
-    int inembed_r2c[2] = { S->NZ_full, S->NX_full };
-    int onembed_r2c[2] = { S->NZ_full, S->NK_full };
     int idist_r2c = S->NZ_full * S->NX_full;
     int odist_r2c = S->NZ_full * S->NK_full;
 
@@ -223,8 +221,8 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
     size_t work_c2r_one = 0;
     if (!checkCufft(cufftMakePlanMany(S->plan_full_r2c_2d,
                                       2, n_2d,
-                                      inembed_r2c, 1, idist_r2c,
-                                      onembed_r2c, 1, odist_r2c,
+                                      nullptr, 1, idist_r2c,
+                                      nullptr, 1, odist_r2c,
                                       CUFFT_R2C, 3,
                                       &work_r2c),
                     "cufftMakePlanMany(plan_full_r2c_2d)")) return fail();

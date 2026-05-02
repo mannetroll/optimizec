@@ -11,3 +11,8 @@
 11 | avoid switching diagnostic cuFFT plan stream in graph path | 9691.366 -> 9629.544 | reverted
 12 | use batch-3 inverse C2R cuFFT plan | 9691.366 -> 8503.376 | reverted
 13 | disable stable-step CUDA graph replay for N>=4096 | 81.353 -> 81.354 | kept
+14 | use CUFFT_WORKAREA_MINIMAL for STEP2B forward R2C plan | 81.354 -> unsupported | reverted
+15 | enable cuFFT patient JIT for STEP2A inverse C2R plan | 81.354 -> 86.161 | reverted (output changed)
+16 | use CUFFT_WORKAREA_MINIMAL for STEP2A inverse C2R plan | 81.354 -> unsupported | reverted
+17 | split STEP2A inverse C2R into two single-component cuFFT launches | 81.354 -> 80.724 | reverted
+18 | use dense null-embed layout for STEP2B forward R2C cuFFT plan | 81.354 -> 81.414 | kept

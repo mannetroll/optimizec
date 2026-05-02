@@ -148,7 +148,7 @@ void dnsCudaStep3(DnsDeviceState *S)
     int NX_half = S->Nbase / 2;
     int NZ      = S->Nbase;
 
-    dim3 block(32, 8);
+    dim3 block(64, 4);
     dim3 grid( (NX_half + block.x - 1) / block.x,
                (NZ      + block.y - 1) / block.y );
 

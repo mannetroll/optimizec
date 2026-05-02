@@ -18,3 +18,5 @@
 18 | use 32x16 blocks for STEP2A prepare | 8513.859 -> 8769.802 | reverted (profile slower; below prior best)
 19 | compute STEP3 wavenumbers from indices | 8513.859 -> 8552.225 | kept
 20 | vectorize STEP2B uiuj build across x pairs | 8552.225 -> 8732.283 | kept
+21 | vectorize STEP2B uiuj build across x quads | 8732.283 -> 8685.888 | reverted
+22 | use 64x4 blocks for STEP3 only | 8732.283 -> 8757.972 | kept

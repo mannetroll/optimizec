@@ -163,7 +163,7 @@ void dnsCudaStep2A_full_debug(DnsDeviceState *S)
 
     // 1) Dealias high-kx band and z-reshuffle low-kz strip.
     {
-        dim3 block(32, 8);
+        dim3 block(64, 2);
         int nx_start = N / 2;
         int nx_end   = 3 * N / 4;
         int nx_len   = nx_end - nx_start + 1;

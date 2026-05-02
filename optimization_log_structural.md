@@ -35,3 +35,13 @@
 35 | pad UC_full spectral pitch to 64-byte row stride | 98.299 -> 97.888 | reverted
 36 | use 32x8 blocks for STEP3 fused | 98.299 -> 98.289 | reverted
 37 | use 32x8 blocks for STEP2A prepare | 98.299 -> 98.354 | kept
+38 | pad UC_full spectral pitch to alternate 32-byte stride | 98.354 -> 97.675 | reverted
+39 | use 16x8 blocks for STEP2A prepare | 98.354 -> 98.086 | reverted
+40 | use 32x4 blocks for STEP2A prepare | 98.354 -> 98.332 | reverted
+41 | use 32x4 blocks for STEP3 fused | 98.354 -> 98.337 | reverted
+42 | use 16x8 blocks for STEP2B uiuj build | 98.354 -> 98.311 | reverted
+43 | use 8x16 blocks for STEP2B uiuj build | 98.354 -> 97.762 | reverted
+44 | use 64x2 blocks for STEP3 fused | 98.354 -> 98.274 | reverted
+45 | use 16x32 blocks for STEP2B uiuj build | 98.354 -> 98.213 | reverted
+46 | use 96x2 blocks for STEP3 fused | 98.354 -> 98.315 | reverted
+47 | use 64x2 blocks for STEP2A prepare | 98.354 -> 98.373 | kept

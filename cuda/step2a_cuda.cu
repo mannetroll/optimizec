@@ -12,6 +12,7 @@
 
 #include "cuda_dns.h"
 #include <cuda_runtime.h>
+#include <algorithm>
 #include <cstdio>
 
 // Dealias: zero high-kx modes on UC_full for comp=0,1
@@ -104,6 +105,51 @@ void k_step2a_full_reshuffle_z(cplx *uc_full,
     }
 }
 
+__global__
+void k_step2a_full_prepare(cplx *uc_full,
+                           int Nbase,
+                           int NZ_full,
+                           int NK_full)
+{
+    int N = Nbase;
+
+    int tx = blockIdx.x * blockDim.x + threadIdx.x;
+    int tz = blockIdx.y * blockDim.y + threadIdx.y;
+
+    int nx_start = N / 2;
+    int nx_end   = 3 * N / 4;
+    int nx_len   = nx_end - nx_start + 1;
+
+    if (tz < NZ_full && tx < nx_len) {
+        int kx = nx_start + tx;
+        if (kx < NK_full) {
+            for (int c = 0; c < 2; ++c) {
+                size_t idx = UC_FULL_INDEX(kx, tz, c, NK_full, NZ_full);
+                uc_full[idx].x = 0.0f;
+                uc_full[idx].y = 0.0f;
+            }
+        }
+    }
+
+    if (tx < N / 2 && tz < N / 2 && tx < NK_full) {
+        int z_mid = tz + N / 2;
+        int z_top = tz + N;
+
+        if (z_top < NZ_full) {
+            for (int c = 0; c < 2; ++c) {
+                size_t idx_mid = UC_FULL_INDEX(tx, z_mid, c, NK_full, NZ_full);
+                size_t idx_top = UC_FULL_INDEX(tx, z_top, c, NK_full, NZ_full);
+
+                cplx v = uc_full[idx_mid];
+                uc_full[idx_top] = v;
+
+                uc_full[idx_mid].x = 0.0f;
+                uc_full[idx_mid].y = 0.0f;
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------------
 // Fortran-style STEP2A on full 3/2 grid (debug + physics)
 // ---------------------------------------------------------------------
@@ -115,28 +161,18 @@ void dnsCudaStep2A_full_debug(DnsDeviceState *S)
     int NZ_full = S->NZ_full;
     int NK_full = S->NK_full;
 
-    // 1) Dealias in kx band
+    // 1) Dealias high-kx band and z-reshuffle low-kz strip.
     {
         dim3 block(16, 16);
         int nx_start = N / 2;
         int nx_end   = 3 * N / 4;
         int nx_len   = nx_end - nx_start + 1;
+        int work_x   = std::max(nx_len, N / 2);
 
-        dim3 grid((nx_len   + block.x - 1) / block.x,
-                  (NZ_full  + block.y - 1) / block.y);
+        dim3 grid((work_x  + block.x - 1) / block.x,
+                  (NZ_full + block.y - 1) / block.y);
 
-        k_step2a_full_zero_highkx<<<grid, block>>>(
-            S->d_uc_full, N, NZ_full, NK_full
-        );
-    }
-
-    // 2) Z-reshuffle low-kz strip
-    {
-        dim3 block(16, 16);
-        dim3 grid((N/2 + block.x - 1) / block.x,
-                  (N/2 + block.y - 1) / block.y);
-
-        k_step2a_full_reshuffle_z<<<grid, block>>>(
+        k_step2a_full_prepare<<<grid, block>>>(
             S->d_uc_full, N, NZ_full, NK_full
         );
     }

@@ -173,7 +173,7 @@ void dnsCudaStep2A_full_debug(DnsDeviceState *S)
                   (NZ_full + block.y - 1) / block.y);
 
         DNS_PHASE_TIME(DNS_PHASE_STEP2A_PREPARE, {
-            k_step2a_full_prepare<<<grid, block, 0, S->stream>>>(
+            k_step2a_full_prepare<<<grid, block>>>(
                 S->d_uc_full, N, NZ_full, NK_full
             );
         });

@@ -1,4 +1,4 @@
- You are optimizing the CUDA solver in cuda/*.cu for FPS while keeping output equal to sim_output_512_1001_gpu.txt.
+ You are optimizing the CUDA solver in cuda/*.cu for FPS while keeping output equal to sim_output_4096_501_gpu.txt.
 
   Current state:
   - The repo already has optimization_log.md with many failed micro-opts.

@@ -46,3 +46,5 @@
 46 | unroll STEP2B middle-row zero stores | 8170.191 -> 8670.561 | reverted
 47 | use warp reduction for display sigma minmax | 8787.201 -> 8368.538 | reverted
 48 | use 64x8 blocks for STEP2A prepare | 8776.260 -> 8534.619 | reverted
+49 | split STEP2B forward R2C cuFFT into batch2+batch1 plans for N=4096 | 81.280 -> 80.823 | reverted
+50 | enable cuFFT patient JIT for STEP2B forward R2C plan | 81.280 -> 89.150 | reverted (output changed)

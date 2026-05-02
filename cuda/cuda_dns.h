@@ -133,7 +133,6 @@ struct DnsDeviceState
 
     // STEP3 scalar.
     real  step3_divxz;        // scalar DIVXZ = 1/(NX_full*NZ_full)
-    cudaStream_t stream;      // active stream for hot-step kernels/cuFFT
 
     // FFT plans (full 3/2 grid) — 1D per-direction, per-component (legacy)
     cufftHandle plan_full_c2r_x;
@@ -193,7 +192,6 @@ void dnsCudaSnapshot(const DnsDeviceState *S,
 // ===============================================================
 void vfft_full_inverse_uc_full_to_ur_full(DnsDeviceState *S);
 void vfft_full_forward_ur_full_to_uc_full(DnsDeviceState *S);
-void dnsCudaSetStream(DnsDeviceState *S, cudaStream_t stream);
 
 
 // ===============================================================

@@ -16,3 +16,5 @@
 16 | use CUFFT_WORKAREA_MINIMAL for STEP2A inverse C2R plan | 81.354 -> unsupported | reverted
 17 | split STEP2A inverse C2R into two single-component cuFFT launches | 81.354 -> 80.724 | reverted
 18 | use dense null-embed layout for STEP2B forward R2C cuFFT plan | 81.354 -> 81.414 | kept
+19 | use dense null-embed layout for STEP2A inverse C2R cuFFT plan | 81.414 -> 81.406 | reverted
+20 | skip stable-step graph grouping block for N>=4096 | 81.414 -> 81.401 | reverted

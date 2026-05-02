@@ -153,7 +153,7 @@ void dnsCudaStep3(DnsDeviceState *S)
                (NZ      + block.y - 1) / block.y );
 
     DNS_PHASE_TIME(DNS_PHASE_STEP3, {
-        k_step3_fused<<<grid, block, 0, S->stream>>>(
+        k_step3_fused<<<grid, block>>>(
             S->d_om2,
             S->d_fnm1,
             S->d_uc_full,

@@ -107,7 +107,6 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
     S->cflnum = 0.75f;  // CFLNUM
     S->it   = 0;
     S->ifn  = 1;        // IFN = 1
-    S->stream = 0;
 
     // ------------------------------------------------------------------
     // Allocate device arrays: current working grid (N x N)
@@ -261,15 +260,6 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
 
 
     return true;
-}
-
-void dnsCudaSetStream(DnsDeviceState *S, cudaStream_t stream)
-{
-    if (!S) return;
-    S->stream = stream;
-    if (S->plan_full_r2c_2d) cufftSetStream(S->plan_full_r2c_2d, stream);
-    if (S->plan_full_c2r_2d) cufftSetStream(S->plan_full_c2r_2d, stream);
-    if (S->plan_full_c2r_2d_one) cufftSetStream(S->plan_full_c2r_2d_one, stream);
 }
 
 void dnsCudaDestroy(DnsDeviceState *S)

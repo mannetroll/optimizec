@@ -203,9 +203,9 @@ void dnsCudaStep2B(DnsDeviceState *S)
               (NZ_full + block.y - 1) / block.y);
 
     DNS_PHASE_TIME(DNS_PHASE_STEP2B_BUILD, {
-        k_step2b_build_uiuj_vec2<<<grid, block, 0, S->stream>>>(S->d_ur_full,
-                                                                NX_full,
-                                                                NZ_full);
+        k_step2b_build_uiuj_vec2<<<grid, block>>>(S->d_ur_full,
+                                                  NX_full,
+                                                  NZ_full);
     });
 
     // 2) Full-grid forward FFT: UR_full → UC_full (3 components)
@@ -228,10 +228,10 @@ void dnsCudaStep2B(DnsDeviceState *S)
     dim3 grid2((NX_half + block2.x - 1) / block2.x);
 
     DNS_PHASE_TIME(DNS_PHASE_STEP2B_ZERO_MIDDLE, {
-        k_step2b_zero_middle<<<grid2, block2, 0, S->stream>>>(S->d_uc_full,
-                                                              NX_half,
-                                                              NZ,
-                                                              S->NK_full,
-                                                              S->NZ_full);
+        k_step2b_zero_middle<<<grid2, block2>>>(S->d_uc_full,
+                                                NX_half,
+                                                NZ,
+                                                S->NK_full,
+                                                S->NZ_full);
     });
 }

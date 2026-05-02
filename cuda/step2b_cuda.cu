@@ -181,7 +181,7 @@ void dnsCudaStep2B(DnsDeviceState *S)
     const int NX_half = S->Nbase / 2;  // NX/2
     const int NZ      = S->Nbase;      // NZ
 
-    dim3 block2(64);
+    dim3 block2(256);
     dim3 grid2((NX_half + block2.x - 1) / block2.x);
 
     k_step2b_zero_middle<<<grid2, block2>>>(S->d_uc_full,

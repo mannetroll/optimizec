@@ -34,6 +34,7 @@
 #else
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <dirent.h>
 #endif
 
 // next_dt_gpu / PGM dump come from dns_cuda.cu
@@ -286,6 +287,50 @@ static std::string makeMovieFramePath(const std::string& folder, int frame_index
     return joinPath(folder, name);
 }
 
+static int findLastMovieFrameIndex(const std::string& folder)
+{
+    int last_index = 0;
+#ifndef _WIN32
+    DIR* dir = opendir(folder.c_str());
+    if (!dir) {
+        return 0;
+    }
+
+    const char* prefix = "omega_inferno_";
+    const char* suffix = ".png";
+    const size_t prefix_len = std::strlen(prefix);
+    const size_t suffix_len = std::strlen(suffix);
+
+    while (dirent* ent = readdir(dir)) {
+        const char* name = ent->d_name;
+        const size_t len = std::strlen(name);
+        if (len <= prefix_len + suffix_len ||
+            std::strncmp(name, prefix, prefix_len) != 0 ||
+            std::strcmp(name + len - suffix_len, suffix) != 0) {
+            continue;
+        }
+
+        const char* digits_begin = name + prefix_len;
+        const char* digits_end = name + len - suffix_len;
+        bool all_digits = digits_begin != digits_end;
+        for (const char* p = digits_begin; p != digits_end; ++p) {
+            if (!std::isdigit((unsigned char)*p)) {
+                all_digits = false;
+                break;
+            }
+        }
+        if (!all_digits) {
+            continue;
+        }
+
+        last_index = std::max(last_index, std::atoi(digits_begin));
+    }
+
+    closedir(dir);
+#endif
+    return last_index;
+}
+
 static std::vector<std::string> splitCsvLine(const std::string& line)
 {
     std::vector<std::string> cols;
@@ -401,6 +446,7 @@ struct MetricsRow
     double Re;
     double CFL;
     double VISC;
+    double DT;
     int STEPS;
     int PALIN;
     int SIG;
@@ -495,6 +541,7 @@ static MetricsRow makeMetricsRow(const DnsDeviceState* S,
         (double)S->Re,
         (double)S->cflnum,
         (double)S->visc,
+        (double)S->dt,
         S->it,
         (int)(10000.0 * pal_over_ens_kmax2),
         (int)sigma,
@@ -512,11 +559,11 @@ static bool saveMetricsCsv(const std::vector<MetricsRow>& rows, const char* file
         return false;
     }
 
-    std::fprintf(fp, "N,K0,Re,CFL,VISC,STEPS,PALIN,SIG,TIME,MINUTES,FPS\n");
+    std::fprintf(fp, "N,K0,Re,CFL,VISC,DT,STEPS,PALIN,SIG,TIME,MINUTES,FPS\n");
     for (const MetricsRow& r : rows) {
         std::fprintf(fp,
-                     "%d,%d,%.17g,%.17g,%.17g,%d,%d,%d,%.17g,%.17g,%.17g\n",
-                     r.N, r.K0, r.Re, r.CFL, r.VISC, r.STEPS,
+                     "%d,%d,%.17g,%.17g,%.17g,%.17g,%d,%d,%d,%.17g,%.17g,%.17g\n",
+                     r.N, r.K0, r.Re, r.CFL, r.VISC, r.DT, r.STEPS,
                      r.PALIN, r.SIG, r.TIME, r.MINUTES, r.FPS);
     }
 
@@ -1323,7 +1370,7 @@ static bool saveSnapshotRestartAndContinue(DnsDeviceState* S,
 
     std::printf("[SIGNAL] Received SIGRTMIN; saving images and restart binary, then continuing.\n");
 
-    const std::string folder = makeOutputFolderName(S, N, K0, Re, CFL);
+    const std::string folder = makeOutputFolderName(S, N, K0, Re, CFL) + "_restart";
     if (!makeDirIfNeeded(folder)) {
         return false;
     }
@@ -1588,7 +1635,6 @@ int main(int argc, char** argv)
             return 1;
         }
         N = S.Nbase;
-        Re = S.Re;
         K0 = S.K0;
         CFL = S.cflnum;
     } else {
@@ -1648,8 +1694,12 @@ int main(int argc, char** argv)
             dnsCudaDestroy(&S);
             return 1;
         }
-        std::printf("[MOV] Saving omega_inferno_%%04d.png every %d steps to %s (F=%d)\n",
-                    update_interval, movie_folder.c_str(), movie_scale_f);
+        movie_frame_index = findLastMovieFrameIndex(movie_folder);
+        std::printf("[MOV] Saving omega_inferno_%%04d.png every %d steps to %s (F=%d, next=%04d)\n",
+                    update_interval,
+                    movie_folder.c_str(),
+                    movie_scale_f,
+                    movie_frame_index + 1);
     }
 
     for (int it = S.it + 1; it <= STEPS; ++it) {

@@ -57,3 +57,4 @@
 57 | split STEP3 into low/high-z half launches for N=16384 | 5.453 -> 5.452 | reverted
 58 | use complex assignment for STEP2A zero stores at N=16384 | 5.453 -> 5.452 | reverted
 59 | split STEP3 ix=0 special column from main kernel at N=16384 | 5.453 -> 5.450 | reverted
+60 | precompute STEP3 UC_full plane/base offsets at N=16384 | 5.453 -> 5.452 | reverted

@@ -160,6 +160,27 @@ void dnsCudaStep2A(DnsDeviceState *S);
 void dnsCudaStep2B(DnsDeviceState *S);
 void dnsCudaStep3(DnsDeviceState *S);
 
+enum DnsCudaPhaseTimingId
+{
+    DNS_PHASE_STEP2B_UIUJ = 0,
+    DNS_PHASE_STEP2B_FORWARD_CUFFT,
+    DNS_PHASE_STEP2B_MIDDLE_ZERO,
+    DNS_PHASE_STEP3_FUSED,
+    DNS_PHASE_STEP2A_PREPARE,
+    DNS_PHASE_STEP2A_INVERSE_CUFFT,
+    DNS_PHASE_NEXTDT_CFLM,
+    DNS_PHASE_OM2PHYS,
+    DNS_PHASE_DISPLAY_SIGMA,
+    DNS_PHASE_COUNT
+};
+
+void dnsCudaPhaseTimingSetEnabled(bool enabled);
+bool dnsCudaPhaseTimingEnabled();
+void dnsCudaPhaseTimingReset();
+void dnsCudaPhaseTimingBegin(DnsCudaPhaseTimingId id);
+void dnsCudaPhaseTimingEnd(DnsCudaPhaseTimingId id);
+void dnsCudaPhaseTimingPrint();
+
 void dnsCudaDumpUCFullCsv(const DnsDeviceState* S, int comp, const char* fname);
 void dnsCudaDumpFieldAsPGM(DnsDeviceState* S, int comp, const char* filename);
 void dnsCudaDumpFieldAsPGMFull(DnsDeviceState *S, int comp, const char *filename);

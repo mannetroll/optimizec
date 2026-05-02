@@ -24,6 +24,132 @@
 #endif
 
 // ======================================================================
+// Opt-in CUDA event phase timing
+// ======================================================================
+
+static bool g_phase_timing_enabled = false;
+static bool g_phase_timing_events_ready = false;
+static cudaEvent_t g_phase_start[DNS_PHASE_COUNT]{};
+static cudaEvent_t g_phase_stop[DNS_PHASE_COUNT]{};
+static double g_phase_total_ms[DNS_PHASE_COUNT]{};
+static unsigned long long g_phase_count[DNS_PHASE_COUNT]{};
+
+static const char* const g_phase_names[DNS_PHASE_COUNT] = {
+    "STEP2B uiuj build",
+    "STEP2B forward cuFFT",
+    "STEP2B middle zero",
+    "STEP3 fused kernel",
+    "STEP2A prepare",
+    "STEP2A inverse cuFFT",
+    "NEXTDT/CFLM",
+    "OM2PHYS",
+    "display sigma"
+};
+
+static bool ensurePhaseTimingEvents()
+{
+    if (g_phase_timing_events_ready) {
+        return true;
+    }
+
+    for (int i = 0; i < DNS_PHASE_COUNT; ++i) {
+        cudaError_t err = cudaEventCreate(&g_phase_start[i]);
+        if (err != cudaSuccess) {
+            std::fprintf(stderr, "phase timing: cudaEventCreate start failed: %s\n",
+                         cudaGetErrorString(err));
+            return false;
+        }
+        err = cudaEventCreate(&g_phase_stop[i]);
+        if (err != cudaSuccess) {
+            std::fprintf(stderr, "phase timing: cudaEventCreate stop failed: %s\n",
+                         cudaGetErrorString(err));
+            return false;
+        }
+    }
+
+    g_phase_timing_events_ready = true;
+    return true;
+}
+
+void dnsCudaPhaseTimingSetEnabled(bool enabled)
+{
+    if (enabled && !ensurePhaseTimingEvents()) {
+        g_phase_timing_enabled = false;
+        return;
+    }
+    g_phase_timing_enabled = enabled;
+}
+
+bool dnsCudaPhaseTimingEnabled()
+{
+    return g_phase_timing_enabled;
+}
+
+void dnsCudaPhaseTimingReset()
+{
+    for (int i = 0; i < DNS_PHASE_COUNT; ++i) {
+        g_phase_total_ms[i] = 0.0;
+        g_phase_count[i] = 0;
+    }
+}
+
+void dnsCudaPhaseTimingBegin(DnsCudaPhaseTimingId id)
+{
+    if (!g_phase_timing_enabled) {
+        return;
+    }
+    if (id < 0 || id >= DNS_PHASE_COUNT || !ensurePhaseTimingEvents()) {
+        return;
+    }
+    cudaEventRecord(g_phase_start[id], 0);
+}
+
+void dnsCudaPhaseTimingEnd(DnsCudaPhaseTimingId id)
+{
+    if (!g_phase_timing_enabled) {
+        return;
+    }
+    if (id < 0 || id >= DNS_PHASE_COUNT || !ensurePhaseTimingEvents()) {
+        return;
+    }
+
+    cudaEventRecord(g_phase_stop[id], 0);
+    cudaEventSynchronize(g_phase_stop[id]);
+
+    float ms = 0.0f;
+    cudaEventElapsedTime(&ms, g_phase_start[id], g_phase_stop[id]);
+    g_phase_total_ms[id] += (double)ms;
+    ++g_phase_count[id];
+}
+
+void dnsCudaPhaseTimingPrint()
+{
+    if (!g_phase_timing_enabled) {
+        return;
+    }
+
+    double total = 0.0;
+    for (int i = 0; i < DNS_PHASE_COUNT; ++i) {
+        total += g_phase_total_ms[i];
+    }
+
+    std::printf("[PHASE] CUDA event timings for measured loop phases\n");
+    std::printf("[PHASE] phase,total_ms,count,avg_ms,pct\n");
+    for (int i = 0; i < DNS_PHASE_COUNT; ++i) {
+        const double avg = g_phase_count[i]
+                           ? g_phase_total_ms[i] / (double)g_phase_count[i]
+                           : 0.0;
+        const double pct = total > 0.0 ? 100.0 * g_phase_total_ms[i] / total : 0.0;
+        std::printf("[PHASE] %s,%.3f,%llu,%.3f,%.2f\n",
+                    g_phase_names[i],
+                    g_phase_total_ms[i],
+                    g_phase_count[i],
+                    avg,
+                    pct);
+    }
+}
+
+// ======================================================================
 // Small helpers to get max|.| on GPU
 // ======================================================================
 

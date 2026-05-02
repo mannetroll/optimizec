@@ -202,9 +202,11 @@ void dnsCudaStep2B(DnsDeviceState *S)
     dim3 grid(((NX_full / 2) + block.x - 1) / block.x,
               (NZ_full + block.y - 1) / block.y);
 
+    dnsCudaPhaseTimingBegin(DNS_PHASE_STEP2B_UIUJ);
     k_step2b_build_uiuj_vec2<<<grid, block>>>(S->d_ur_full,
                                               NX_full,
                                               NZ_full);
+    dnsCudaPhaseTimingEnd(DNS_PHASE_STEP2B_UIUJ);
 
     // 2) Full-grid forward FFT: UR_full → UC_full (3 components)
     //    This is the CUDA equivalent of Fortran's:
@@ -214,7 +216,9 @@ void dnsCudaStep2B(DnsDeviceState *S)
     //    vfft_full_forward_ur_full_to_uc_full(S) is assumed to:
     //      • use CUFFT_R2C along X for all 3 components, and
     //      • then CUFFT_C2C (forward) along Z for all 3 components.
+    dnsCudaPhaseTimingBegin(DNS_PHASE_STEP2B_FORWARD_CUFFT);
     vfft_full_forward_ur_full_to_uc_full(S);
+    dnsCudaPhaseTimingEnd(DNS_PHASE_STEP2B_FORWARD_CUFFT);
 
     // 3) Zero UC(X,NZ+1,I) for X<=NX/2, I=1..3
     const int NX_half = S->Nbase / 2;  // NX/2
@@ -223,9 +227,11 @@ void dnsCudaStep2B(DnsDeviceState *S)
     dim3 block2(256);
     dim3 grid2((NX_half + block2.x - 1) / block2.x);
 
+    dnsCudaPhaseTimingBegin(DNS_PHASE_STEP2B_MIDDLE_ZERO);
     k_step2b_zero_middle<<<grid2, block2>>>(S->d_uc_full,
                                             NX_half,
                                             NZ,
                                             S->NK_full,
                                             S->NZ_full);
+    dnsCudaPhaseTimingEnd(DNS_PHASE_STEP2B_MIDDLE_ZERO);
 }

@@ -1725,10 +1725,16 @@ int main(int argc, char** argv)
     if (UPDATE <= 0) UPDATE = 100;
     if (STEPS <= 0) STEPS = 1000000;
 
+    const bool phase_timing = parseEnabledFlag(std::getenv("PHASE_TIMING"));
+    dnsCudaPhaseTimingSetEnabled(phase_timing);
+
     printf("--- INITIALIZING FPS_CUDA ---\n");
     printf(" N=%d, Re=%d, K0=%d, STEPS=%d, CFL=%.3f, UPDATE=%d, ADAPT_VISC=%d, MOV=%d\n",
            N, (int)Re, (int)K0, STEPS, (float)CFL, UPDATE,
            ADAPT_VISC ? 1 : 0, MOV ? 1 : 0);
+    if (phase_timing) {
+        printf("[PHASE] PHASE_TIMING enabled; profiling will synchronize measured phases.\n");
+    }
     if (RESTART_PATH) {
         printf(" restart=%s\n", RESTART_PATH);
     }
@@ -1787,6 +1793,7 @@ int main(int argc, char** argv)
     // -----------------------------------------------------------------
     using clock_type = std::chrono::steady_clock;
     cudaDeviceSynchronize();  // ensure all previous work done
+    dnsCudaPhaseTimingReset();
     auto tbegin = clock_type::now();
     const int update_interval = UPDATE;
     int steady_warmup_steps = update_interval;
@@ -1850,10 +1857,17 @@ int main(int argc, char** argv)
         S.t += dt_old;  // advance by pre-nextdt dt, matching Python
 
         if (it == 1 || (it % update_interval) == 0 || it == STEPS) {
+            dnsCudaPhaseTimingBegin(DNS_PHASE_NEXTDT_CFLM);
             next_dt_gpu(&S);
+            dnsCudaPhaseTimingEnd(DNS_PHASE_NEXTDT_CFLM);
 
+            dnsCudaPhaseTimingBegin(DNS_PHASE_OM2PHYS);
             dnsCudaOm2Phys(&S);
+            dnsCudaPhaseTimingEnd(DNS_PHASE_OM2PHYS);
+
+            dnsCudaPhaseTimingBegin(DNS_PHASE_DISPLAY_SIGMA);
             const double omega_sigma = computeDisplaySigma(&S, 2);
+            dnsCudaPhaseTimingEnd(DNS_PHASE_DISPLAY_SIGMA);
             double pal_over_ens_kmax2 = 0.0;
             if (ADAPT_VISC) {
                 pal_over_ens_kmax2 = computePalOverEnsKmax2(&S);
@@ -2024,6 +2038,7 @@ int main(int argc, char** argv)
     printf(" Final T=%12.7f  CN=%12.7f  DT=%12.7f  VISC=%12.7f\n",
            S.t, S.cn, S.dt, S.visc);
     printGpuSnapshot("end");
+    dnsCudaPhaseTimingPrint();
     std::fflush(stdout);
 
     bool should_dump_outputs = false;

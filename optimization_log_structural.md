@@ -48,3 +48,10 @@
 48 | use 96x2 blocks for STEP2A prepare | 98.373 -> 98.395 | kept
 49 | use 128x1 blocks for STEP2A prepare | 98.395 -> 98.367 | reverted
 50 | use 96x1 blocks for STEP2A prepare | 98.395 -> 98.353 | reverted
+51 | retry pruned STEP2B forward z FFT to kx<N/2 for N=16384 | 5.443 -> 3.233 | reverted
+52 | retry pruned STEP2A inverse z FFT to kx<N/2 for N=16384 | 5.443 -> 3.738 | reverted
+53 | retry 32-byte UC_full spectral pitch for N=16384 | 5.443 -> 5.401 | reverted
+54 | retry even UC_full spectral pitch for N=16384 | 5.443 -> 5.397 | reverted
+55 | use cufftMakePlanMany64 for STEP2B full R2C plan at N=16384 | 5.443 -> 5.442 | reverted
+56 | use cufftMakePlanMany64 for STEP2A full C2R plan at N=16384 | 5.443 -> 5.441 | reverted
+57 | retry 64x2 STEP2A prepare blocks for N=16384 | 5.443 -> 5.445 | kept

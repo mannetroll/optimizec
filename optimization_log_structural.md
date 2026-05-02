@@ -56,3 +56,4 @@
 56 | use cufftMakePlanMany64 for STEP2A full C2R plan at N=16384 | 5.443 -> 5.441 | reverted
 57 | retry 64x2 STEP2A prepare blocks for N=16384 | 5.443 -> 5.445 | kept
 58 | retry 96x2 STEP2A prepare blocks for N=16384 | 5.445 -> 5.446 | kept
+59 | retry dense null-embed STEP2B forward R2C plan for N=16384 | 5.446 -> 5.446 | reverted

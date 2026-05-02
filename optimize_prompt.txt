@@ -27,17 +27,17 @@ LD_LIBRARY_PATH=/usr/lib/wsl/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-} \
   PATH=/usr/local/bin:/usr/local/cuda/bin:/usr/lib/wsl/lib:$PATH \
   codex --dangerously-bypass-approvals-and-sandbox -c shell_environment_policy.inherit=all
 
- [tobbe@fractal optimizec]$ grep -i microsoft /proc/version
+ $ grep -i microsoft /proc/version
  Linux version 6.6.87.2-microsoft-standard-WSL2 (root@439a258ad544) (gcc (GCC) 11.2.0, GNU ld (GNU Binutils) 2.37) #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025
 
- [tobbe@fractal optimizec]$ nsys --version
+ $ nsys --version
  NVIDIA Nsight Systems version 2025.5.2.266-255236693005v0
 
- [tobbe@fractal optimizec]$ cat /etc/os-release
+ $ cat /etc/os-release
  NAME="Oracle Linux Server"
  VERSION="9.7"
 
- [tobbe@fractal optimizec]$ nvidia-smi | head -3
+ $ nvidia-smi | head -3
  Sat May  2 09:23:30 2026
  +-----------------------------------------------------------------------------------------+
  | NVIDIA-SMI 590.44.01              Driver Version: 591.44         CUDA Version: 13.1     |

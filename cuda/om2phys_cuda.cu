@@ -151,7 +151,6 @@ void dnsCudaOm2Phys(DnsDeviceState *S)
         return;
     }
 
-    cudaDeviceSynchronize();
 }
 
 // ---------------------------------------------------------------------

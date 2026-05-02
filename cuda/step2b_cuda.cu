@@ -44,9 +44,6 @@
 #include <cuda_runtime.h>
 #include <cstdio>
 
-// Forward declaration from vfft_cuda.cu (existing full-grid FFT helper)
-extern void vfft_full_forward_ur_full_to_uc_full(DnsDeviceState *S);
-
 // ---------------------------------------------------------------------
 // Kernel 1: build uiuj on the full 3/2 grid
 //
@@ -213,11 +210,8 @@ void dnsCudaStep2B(DnsDeviceState *S)
     //      VRFFTF (X-direction, 3*NX/2)
     //      VCFFTF (Z-direction, 3*NZ/2)
     //
-    //    vfft_full_forward_ur_full_to_uc_full(S) is assumed to:
-    //      • use CUFFT_R2C along X for all 3 components, and
-    //      • then CUFFT_C2C (forward) along Z for all 3 components.
     DNS_PHASE_TIME(DNS_PHASE_STEP2B_FFT, {
-        vfft_full_forward_ur_full_to_uc_full(S);
+        vfft_step2b_forward_ur_full_to_uc_needed(S);
     });
 
     // 3) Zero UC(X,NZ+1,I) for X<=NX/2, I=1..3

@@ -40,3 +40,30 @@ void vfft_full_forward_ur_full_to_uc_full(DnsDeviceState *S)
         printf("vfft_full_forward: cufftExecR2C failed, code=%d\n", r);
     }
 }
+
+// Forward path for STEP2B nonlinear products. STEP3 consumes only kx < N/2,
+// so the z-direction FFT is pruned to those columns after the x R2C pass.
+void vfft_step2b_forward_ur_full_to_uc_needed(DnsDeviceState *S)
+{
+    if (!S) return;
+
+    cufftResult r = cufftExecR2C(
+        S->plan_full_r2c_x,
+        reinterpret_cast<cufftReal*   >(S->d_ur_full),
+        reinterpret_cast<cufftComplex*>(S->d_uc_full)
+    );
+    if (r != CUFFT_SUCCESS) {
+        printf("vfft_step2b_forward: cufftExecR2C x failed, code=%d\n", r);
+        return;
+    }
+
+    const size_t plane = (size_t)S->NZ_full * (size_t)S->NK_full;
+    for (int c = 0; c < 3; ++c) {
+        cufftComplex* comp = reinterpret_cast<cufftComplex*>(S->d_uc_full + plane * c);
+        r = cufftExecC2C(S->plan_full_c2c_z, comp, comp, CUFFT_FORWARD);
+        if (r != CUFFT_SUCCESS) {
+            printf("vfft_step2b_forward: cufftExecC2C z failed, code=%d\n", r);
+            return;
+        }
+    }
+}

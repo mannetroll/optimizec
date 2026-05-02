@@ -36,3 +36,13 @@
 36 | replace STEP2B middle-zero kernel with cudaMemsetAsync | 8850.884 -> 8477.093 | reverted
 37 | use 64x8 blocks for STEP3 | 8850.884 -> 8646.326 | reverted
 38 | use 32x16 blocks for STEP2B vec2 build | 8850.884 -> 8667.122 | reverted
+39 | use persistent OM2PHYS spectral scratch | 8826.200 -> 8717.652 | reverted
+40 | capture repeated non-diagnostic timesteps with CUDA graph | 8786.579 -> 7318.357 | reverted
+41 | use 128x2 blocks for STEP3 | 8496.233 -> 8693.180 | reverted
+42 | manually address STEP2A prepare component planes | 8497.446 -> 8456.015 | reverted
+43 | use 512-thread CFLM reduction blocks | 8790.592 -> 8338.351 | reverted
+44 | cap display sigma reductions at 768 blocks | 8788.668 -> 8662.362 | reverted
+45 | add restrict qualifiers to STEP2B vec2 build | 8748.420 -> 8555.321 | reverted
+46 | unroll STEP2B middle-row zero stores | 8170.191 -> 8670.561 | reverted
+47 | use warp reduction for display sigma minmax | 8787.201 -> 8368.538 | reverted
+48 | use 64x8 blocks for STEP2A prepare | 8776.260 -> 8534.619 | reverted

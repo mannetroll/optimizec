@@ -167,13 +167,17 @@ void dnsCudaStep2A_full_debug(DnsDeviceState *S)
         int nx_start = N / 2;
         int nx_end   = 3 * N / 4;
         int nx_len   = nx_end - nx_start + 1;
-        int work_x   = std::max(nx_len, N / 2);
-
-        dim3 grid((work_x  + block.x - 1) / block.x,
-                  (NZ_full + block.y - 1) / block.y);
 
         dnsCudaPhaseTimingBegin(DNS_PHASE_STEP2A_PREPARE);
-        k_step2a_full_prepare<<<grid, block>>>(
+        dim3 grid_zero((nx_len  + block.x - 1) / block.x,
+                       (NZ_full + block.y - 1) / block.y);
+        k_step2a_full_zero_highkx<<<grid_zero, block>>>(
+            S->d_uc_full, N, NZ_full, NK_full
+        );
+
+        dim3 grid_shuffle((N / 2 + block.x - 1) / block.x,
+                          (N / 2 + block.y - 1) / block.y);
+        k_step2a_full_reshuffle_z<<<grid_shuffle, block>>>(
             S->d_uc_full, N, NZ_full, NK_full
         );
         dnsCudaPhaseTimingEnd(DNS_PHASE_STEP2A_PREPARE);

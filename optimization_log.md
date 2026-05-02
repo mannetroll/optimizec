@@ -49,3 +49,4 @@
 49 | split STEP2B forward R2C cuFFT into batch2+batch1 plans for N=4096 | 81.280 -> 80.823 | reverted
 50 | enable cuFFT patient JIT for STEP2B forward R2C plan | 81.280 -> 89.150 | reverted (output changed)
 51 | use three single-batch STEP2B forward R2C plans for N=16384 | 5.447 -> output changed | reverted
+52 | split STEP2A prepare zero-high-kx and z-reshuffle domains for N=16384 | 5.447 -> 5.453 | kept

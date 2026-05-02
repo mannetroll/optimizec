@@ -91,8 +91,9 @@ echo
 echo "Save and exit:"
 echo "  kill -HUP $SIM_PID"
 echo
-echo "Exit without saving:"
+echo "Kill immediately without saving:"
 echo "  kill -INT $SIM_PID"
+echo "  (Ctrl-C only reaches mem_cuda when it is the foreground job.)"
 echo
 echo "Cancel hourly snapshots only:"
 echo "  kill $TIMER_PID"

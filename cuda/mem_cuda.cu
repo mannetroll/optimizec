@@ -31,10 +31,12 @@
 
 #ifdef _WIN32
 #include <direct.h>
+#include <process.h>
 #else
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <unistd.h>
 #endif
 
 // next_dt_gpu / PGM dump come from dns_cuda.cu
@@ -122,6 +124,11 @@ static void requestExit(int sig)
     g_exit_signal = sig;
 }
 
+static void exitImmediately(int sig)
+{
+    _exit(128 + sig);
+}
+
 static void requestSave(int)
 {
     g_save_requested = 1;
@@ -153,7 +160,7 @@ static void installExitSignalHandlers()
     std::signal(SIGRTMIN, requestSaveRestart);
 #endif
 #endif
-    std::signal(SIGINT, requestExit);
+    std::signal(SIGINT, exitImmediately);
     std::signal(SIGTERM, requestExit);
 }
 
@@ -198,7 +205,7 @@ static void ignoreExitSignalHandlers()
     std::signal(SIGRTMIN, SIG_IGN);
 #endif
 #endif
-    std::signal(SIGINT, SIG_IGN);
+    std::signal(SIGINT, exitImmediately);
     std::signal(SIGTERM, SIG_IGN);
 }
 

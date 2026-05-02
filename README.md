@@ -154,13 +154,14 @@ Save and exit:
 kill -HUP <pid>
 ```
 
-Exit without saving:
+Kill immediately without saving:
 
 ```bash
 kill -INT <pid>
 ```
 
-Equivalent Ctrl-C behavior is `SIGINT`: stop without saving.
+For a foreground run, Ctrl-C sends the same `SIGINT` and terminates immediately without saving.
+For a background job, use `kill -INT <pid>` or bring it foreground with `fg` before pressing Ctrl-C.
 
 ## Output
 

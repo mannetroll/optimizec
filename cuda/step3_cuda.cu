@@ -95,12 +95,8 @@ void k_step3_fused(cplx *om2,
     num.y = c1 * om_old.y + c2 * FN.y + c3 * fn_old.y;
 
     cplx om_new;
-    if (DEN != 0.0f) {
-        om_new.x = num.x / DEN;
-        om_new.y = num.y / DEN;
-    } else {
-        om_new = om_old;
-    }
+    om_new.x = num.x / DEN;
+    om_new.y = num.y / DEN;
 
     om2[idx_om]  = om_new;
     fnm1[idx_om] = FN;

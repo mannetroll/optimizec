@@ -23,3 +23,6 @@
 23 | add restrict qualifiers to STEP3 arrays | 8757.972 -> 8717.399 | reverted
 24 | use 64x4 blocks for STEP2B vec2 build | 8757.972 -> 8541.963 | reverted
 25 | use 64x4 blocks for STEP2A prepare only | 8757.972 -> 8759.579 | kept
+26 | add GPU final reduction for CFLM | 8759.579 -> 8702.644 | reverted
+27 | use 128x2 blocks for STEP2A prepare | 8759.579 -> 8469.071 | reverted
+28 | use 16x16 blocks for STEP2B vec2 build | 8759.579 -> 8850.884 | kept

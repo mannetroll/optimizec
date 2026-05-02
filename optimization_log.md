@@ -48,3 +48,4 @@
 48 | use 64x8 blocks for STEP2A prepare | 8776.260 -> 8534.619 | reverted
 49 | split STEP2B forward R2C cuFFT into batch2+batch1 plans for N=4096 | 81.280 -> 80.823 | reverted
 50 | enable cuFFT patient JIT for STEP2B forward R2C plan | 81.280 -> 89.150 | reverted (output changed)
+51 | use three single-batch STEP2B forward R2C plans for N=16384 | 5.447 -> output changed | reverted

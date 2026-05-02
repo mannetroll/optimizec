@@ -46,3 +46,5 @@
 46 | use 96x2 blocks for STEP3 fused | 98.354 -> 98.315 | reverted
 47 | use 64x2 blocks for STEP2A prepare | 98.354 -> 98.373 | kept
 48 | use 96x2 blocks for STEP2A prepare | 98.373 -> 98.395 | kept
+49 | use 128x1 blocks for STEP2A prepare | 98.395 -> 98.367 | reverted
+50 | use 96x1 blocks for STEP2A prepare | 98.395 -> 98.353 | reverted

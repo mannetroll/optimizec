@@ -172,13 +172,17 @@ void dnsCudaStep2A_full_debug(DnsDeviceState *S)
         dim3 grid((work_x  + block.x - 1) / block.x,
                   (NZ_full + block.y - 1) / block.y);
 
-        k_step2a_full_prepare<<<grid, block>>>(
-            S->d_uc_full, N, NZ_full, NK_full
-        );
+        DNS_PHASE_TIME(DNS_PHASE_STEP2A_PREPARE, {
+            k_step2a_full_prepare<<<grid, block, 0, S->stream>>>(
+                S->d_uc_full, N, NZ_full, NK_full
+            );
+        });
     }
 
     // 3) Full inverse FFT: UC_full → UR_full (3/2 grid)
-    vfft_full_inverse_uc_full_to_ur_full(S);
+    DNS_PHASE_TIME(DNS_PHASE_STEP2A_FFT, {
+        vfft_full_inverse_uc_full_to_ur_full(S);
+    });
 }
 
 // ---------------------------------------------------------------------

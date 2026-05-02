@@ -48,6 +48,74 @@ static volatile std::sig_atomic_t g_save_restart_requested = 0;
 static volatile std::sig_atomic_t g_pause_requested = 0;
 static volatile std::sig_atomic_t g_resume_requested = 0;
 
+bool g_dns_phase_timing_enabled = false;
+static double g_dns_phase_ms[DNS_PHASE_COUNT] = {};
+static unsigned long long g_dns_phase_count[DNS_PHASE_COUNT] = {};
+
+static const char* dnsPhaseName(DnsPhaseId id)
+{
+    switch (id) {
+        case DNS_PHASE_STEP2B_BUILD:       return "STEP2B uiuj build";
+        case DNS_PHASE_STEP2B_FFT:         return "STEP2B forward cuFFT";
+        case DNS_PHASE_STEP2B_ZERO_MIDDLE: return "STEP2B middle zero";
+        case DNS_PHASE_STEP3:              return "STEP3 fused";
+        case DNS_PHASE_STEP2A_PREPARE:     return "STEP2A prepare";
+        case DNS_PHASE_STEP2A_FFT:         return "STEP2A inverse cuFFT";
+        case DNS_PHASE_NEXTDT_CFLM:        return "NEXTDT/CFLM";
+        case DNS_PHASE_OM2PHYS:            return "OM2PHYS";
+        case DNS_PHASE_DISPLAY_SIGMA:      return "display sigma";
+        default:                           return "unknown";
+    }
+}
+
+bool dnsPhaseTimingEnabled()
+{
+    return g_dns_phase_timing_enabled;
+}
+
+void dnsPhaseTimingSetEnabled(bool enabled)
+{
+    g_dns_phase_timing_enabled = enabled;
+}
+
+void dnsPhaseTimingReset()
+{
+    std::fill(g_dns_phase_ms, g_dns_phase_ms + DNS_PHASE_COUNT, 0.0);
+    std::fill(g_dns_phase_count, g_dns_phase_count + DNS_PHASE_COUNT, 0ull);
+}
+
+void dnsPhaseTimingAdd(DnsPhaseId id, float ms)
+{
+    if (id < 0 || id >= DNS_PHASE_COUNT) return;
+    g_dns_phase_ms[id] += (double)ms;
+    ++g_dns_phase_count[id];
+}
+
+void dnsPhaseTimingReport()
+{
+    if (!dnsPhaseTimingEnabled()) return;
+
+    double total_ms = 0.0;
+    for (int i = 0; i < DNS_PHASE_COUNT; ++i) {
+        total_ms += g_dns_phase_ms[i];
+    }
+
+    std::printf("[PHASE] name,total_ms,calls,avg_us,pct\n");
+    for (int i = 0; i < DNS_PHASE_COUNT; ++i) {
+        const double ms = g_dns_phase_ms[i];
+        const unsigned long long calls = g_dns_phase_count[i];
+        const double avg_us = calls ? (ms * 1000.0 / (double)calls) : 0.0;
+        const double pct = total_ms > 0.0 ? (100.0 * ms / total_ms) : 0.0;
+        std::printf("[PHASE] %s,%.6f,%llu,%.3f,%.2f\n",
+                    dnsPhaseName((DnsPhaseId)i),
+                    ms,
+                    calls,
+                    avg_us,
+                    pct);
+    }
+    std::fflush(stdout);
+}
+
 static void requestExit(int sig)
 {
     g_exit_requested = 1;
@@ -867,6 +935,61 @@ static double computeDisplaySigma(DnsDeviceState* S, int comp)
     const double mean = sum / (double)plane;
     const double var = std::max(0.0, sum2 / (double)plane - mean * mean);
     return std::sqrt(var);
+}
+
+static bool launchStableStepGraph(DnsDeviceState* S, int count)
+{
+    static bool graph_disabled = false;
+    if (!S || count <= 0 || graph_disabled || dnsPhaseTimingEnabled()) {
+        return false;
+    }
+
+    cudaStream_t stream = nullptr;
+    cudaGraph_t graph = nullptr;
+    cudaGraphExec_t graph_exec = nullptr;
+
+    auto fail = [&](const char* label, cudaError_t err) -> bool {
+        std::fprintf(stderr, "stable step graph: %s failed: %s\n",
+                     label, cudaGetErrorString(err));
+        graph_disabled = true;
+        if (graph_exec) cudaGraphExecDestroy(graph_exec);
+        if (graph) cudaGraphDestroy(graph);
+        dnsCudaSetStream(S, 0);
+        if (stream) cudaStreamDestroy(stream);
+        return false;
+    };
+
+    cudaError_t err = cudaStreamCreate(&stream);
+    if (err != cudaSuccess) return fail("cudaStreamCreate", err);
+
+    dnsCudaSetStream(S, stream);
+
+    err = cudaStreamBeginCapture(stream, cudaStreamCaptureModeRelaxed);
+    if (err != cudaSuccess) return fail("cudaStreamBeginCapture", err);
+
+    dnsCudaStep2B(S);
+    dnsCudaStep3(S);
+    dnsCudaStep2A(S);
+
+    err = cudaStreamEndCapture(stream, &graph);
+    if (err != cudaSuccess) return fail("cudaStreamEndCapture", err);
+
+    err = cudaGraphInstantiate(&graph_exec, graph, nullptr, nullptr, 0);
+    if (err != cudaSuccess) return fail("cudaGraphInstantiate", err);
+
+    for (int i = 0; i < count; ++i) {
+        err = cudaGraphLaunch(graph_exec, stream);
+        if (err != cudaSuccess) return fail("cudaGraphLaunch", err);
+    }
+
+    err = cudaStreamSynchronize(stream);
+    if (err != cudaSuccess) return fail("cudaStreamSynchronize", err);
+
+    cudaGraphExecDestroy(graph_exec);
+    cudaGraphDestroy(graph);
+    dnsCudaSetStream(S, 0);
+    cudaStreamDestroy(stream);
+    return true;
 }
 
 static double computePalOverEnsKmax2(DnsDeviceState* S)
@@ -1725,10 +1848,19 @@ int main(int argc, char** argv)
     if (UPDATE <= 0) UPDATE = 100;
     if (STEPS <= 0) STEPS = 1000000;
 
+    const char* env_phase_timing = std::getenv("PHASE_TIMING");
+    const bool phase_timing_enabled =
+        env_phase_timing && env_phase_timing[0] != '\0' &&
+        std::strcmp(env_phase_timing, "0") != 0;
+    dnsPhaseTimingSetEnabled(phase_timing_enabled);
+
     printf("--- INITIALIZING FPS_CUDA ---\n");
     printf(" N=%d, Re=%d, K0=%d, STEPS=%d, CFL=%.3f, UPDATE=%d, ADAPT_VISC=%d, MOV=%d\n",
            N, (int)Re, (int)K0, STEPS, (float)CFL, UPDATE,
            ADAPT_VISC ? 1 : 0, MOV ? 1 : 0);
+    if (dnsPhaseTimingEnabled()) {
+        std::printf("[PHASE] PHASE_TIMING enabled; CUDA event timing will synchronize timed phases.\n");
+    }
     if (RESTART_PATH) {
         printf(" restart=%s\n", RESTART_PATH);
     }
@@ -1786,6 +1918,7 @@ int main(int argc, char** argv)
     // Timing section: STEP2B → STEP3 → STEP2A → NEXTDT
     // -----------------------------------------------------------------
     using clock_type = std::chrono::steady_clock;
+    dnsPhaseTimingReset();
     cudaDeviceSynchronize();  // ensure all previous work done
     auto tbegin = clock_type::now();
     const int update_interval = UPDATE;
@@ -1850,10 +1983,17 @@ int main(int argc, char** argv)
         S.t += dt_old;  // advance by pre-nextdt dt, matching Python
 
         if (it == 1 || (it % update_interval) == 0 || it == STEPS) {
-            next_dt_gpu(&S);
+            DNS_PHASE_TIME(DNS_PHASE_NEXTDT_CFLM, {
+                next_dt_gpu(&S);
+            });
 
-            dnsCudaOm2Phys(&S);
-            const double omega_sigma = computeDisplaySigma(&S, 2);
+            DNS_PHASE_TIME(DNS_PHASE_OM2PHYS, {
+                dnsCudaOm2Phys(&S);
+            });
+            double omega_sigma = 0.0;
+            DNS_PHASE_TIME(DNS_PHASE_DISPLAY_SIGMA, {
+                omega_sigma = computeDisplaySigma(&S, 2);
+            });
             double pal_over_ens_kmax2 = 0.0;
             if (ADAPT_VISC) {
                 pal_over_ens_kmax2 = computePalOverEnsKmax2(&S);
@@ -1987,6 +2127,24 @@ int main(int argc, char** argv)
                 return 1;
             }
         }
+
+        if (!MOV && !g_pause_requested && !g_exit_requested &&
+            !g_save_restart_requested && !g_save_requested &&
+            S.cnm1 == S.cn) {
+            const int next_report = ((it / update_interval) + 1) * update_interval;
+            const int group_last = std::min(next_report - 1, STEPS);
+            const int group_count = group_last - it;
+
+            if (group_count > 0 && launchStableStepGraph(&S, group_count)) {
+                const float dt_group = S.dt;
+                for (int g = 0; g < group_count; ++g) {
+                    S.t += dt_group;
+                }
+                it += group_count;
+                S.it = it;
+                S.cnm1 = S.cn;
+            }
+        }
     }
 
     cudaDeviceSynchronize();
@@ -2025,6 +2183,7 @@ int main(int argc, char** argv)
            S.t, S.cn, S.dt, S.visc);
     printGpuSnapshot("end");
     std::fflush(stdout);
+    dnsPhaseTimingReport();
 
     if (interrupted) {
         ignoreExitSignalHandlers();

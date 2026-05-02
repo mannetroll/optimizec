@@ -152,19 +152,21 @@ void dnsCudaStep3(DnsDeviceState *S)
     dim3 grid( (NX_half + block.x - 1) / block.x,
                (NZ      + block.y - 1) / block.y );
 
-    k_step3_fused<<<grid, block>>>(
-        S->d_om2,
-        S->d_fnm1,
-        S->d_uc_full,
-        S->step3_divxz,
-        S->visc,
-        S->dt,
-        S->cnm1,
-        NX_half,
-        NZ,
-        S->NZ_full,
-        S->NK_full
-    );
+    DNS_PHASE_TIME(DNS_PHASE_STEP3, {
+        k_step3_fused<<<grid, block, 0, S->stream>>>(
+            S->d_om2,
+            S->d_fnm1,
+            S->d_uc_full,
+            S->step3_divxz,
+            S->visc,
+            S->dt,
+            S->cnm1,
+            NX_half,
+            NZ,
+            S->NZ_full,
+            S->NK_full
+        );
+    });
 
     // Mirror Fortran: CNM1 = CN
     S->cnm1 = S->cn;

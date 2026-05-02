@@ -17,3 +17,4 @@
 17 | write STEP3 high-z outputs directly in post-reshuffle layout | 8396.441 -> output changed | reverted
 18 | use 32x16 blocks for STEP2A prepare | 8513.859 -> 8769.802 | reverted (profile slower; below prior best)
 19 | compute STEP3 wavenumbers from indices | 8513.859 -> 8552.225 | kept
+20 | vectorize STEP2B uiuj build across x pairs | 8552.225 -> 8732.283 | kept

@@ -31,3 +31,4 @@
 31 | use contiguous scratch for STEP2B C2C z FFT | 96.791 -> output changed | reverted
 32 | use 32x8 blocks for STEP2B uiuj build | 96.791 -> 96.765 | reverted
 33 | pad UC_full spectral pitch to even complex stride | 96.791 -> 97.664 | kept
+34 | pad UC_full spectral pitch to 32-byte row stride | 97.664 -> 98.299 | kept

@@ -94,7 +94,7 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
     // Future full 3/2 grid (Fortran-style). We just store these now.
     S->NX_full = 3*S->Nbase/2;      // 3N/2 (e.g. 192)
     S->NZ_full = 3*S->Nbase/2;      // 3N/2
-    S->NK_full = 3*S->Nbase/4 + 2;  // padded pitch for 3N/4+1 spectral values
+    S->NK_full = 3*S->Nbase/4 + 4;  // padded pitch for 3N/4+1 spectral values
 
     S->Re   = Re;
     S->K0   = K0;

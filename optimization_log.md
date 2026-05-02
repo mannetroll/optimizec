@@ -26,3 +26,13 @@
 26 | add GPU final reduction for CFLM | 8759.579 -> 8702.644 | reverted
 27 | use 128x2 blocks for STEP2A prepare | 8759.579 -> 8469.071 | reverted
 28 | use 16x16 blocks for STEP2B vec2 build | 8759.579 -> 8850.884 | kept
+29 | use 16x16 blocks for STEP3 | 8850.884 -> 8794.379 | reverted
+30 | precompute STEP3 time coefficients after wavenumber change | 8850.884 -> 8617.305 | reverted
+31 | use 16x16 blocks for STEP2A prepare | 8850.884 -> 8469.300 | reverted
+32 | use direct pair-stride indexing in STEP2B vec2 | 8850.884 -> 8662.522 | reverted
+33 | raise display sigma reduction cap to 2048 blocks | 8850.884 -> 8561.911 | reverted
+34 | prefer L1 cache for STEP3 fused kernel | 8850.884 -> 8626.245 | reverted
+35 | prefer L1 cache for STEP2B vec2 build | 8850.884 -> 8660.450 | reverted
+36 | replace STEP2B middle-zero kernel with cudaMemsetAsync | 8850.884 -> 8477.093 | reverted
+37 | use 64x8 blocks for STEP3 | 8850.884 -> 8646.326 | reverted
+38 | use 32x16 blocks for STEP2B vec2 build | 8850.884 -> 8667.122 | reverted

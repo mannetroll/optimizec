@@ -159,7 +159,7 @@ void dnsCudaStep2B(DnsDeviceState *S)
     const int NZ_full = S->NZ_full;   // 3*N/2
 
     // 1) Build uiuj (UR(:,:,0..2) = u^2, w^2, u*w)
-    dim3 block(16, 16);
+    dim3 block(32, 8);
     dim3 grid((NX_full + block.x - 1) / block.x,
               (NZ_full + block.y - 1) / block.y);
 

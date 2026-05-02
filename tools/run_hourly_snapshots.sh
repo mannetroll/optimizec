@@ -8,7 +8,7 @@ TIMER_LOG=${TIMER_LOG:-snapshot_timer.txt}
 SNAPSHOT_INTERVAL=${SNAPSHOT_INTERVAL:-1h}
 MOV=${MOV:-0}
 MOV_DIR=${MOV_DIR:-/opt/dlami/nvme/cudaturboruns}
-RESTART=${RESTART:-${RESTART_BIN:-}}
+RESTART=${RESTART:-}
 
 N=${N:-29400}
 RE=${RE:-1E8}
@@ -46,13 +46,15 @@ fi
 if [[ "$MOV" == "1" ]]; then
     echo "movie root: $MOV_DIR"
 fi
+echo "snapshot interval: $SNAPSHOT_INTERVAL"
+echo "snapshot signal: SIGUSR1"
 
-nohup "${cmd[@]}" 2>&1 &
+setsid "${cmd[@]}" 2>&1 &
 SIM_PID=$!
 echo "mem_cuda PID: $SIM_PID"
 echo "$SIM_PID" > mem_cuda.pid
 
-nohup bash -c '
+setsid bash -c '
 set -euo pipefail
 pid="$1"
 interval="$2"

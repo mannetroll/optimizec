@@ -1016,7 +1016,7 @@ static void appendMetricsRow(DnsDeviceState* S,
                                       start_iter));
 }
 
-struct RestartHeader
+struct RestartHeaderV1
 {
     char magic[16];
     std::uint32_t version;
@@ -1045,6 +1045,12 @@ struct RestartHeader
     std::uint64_t uc_full_count;
     std::uint64_t om2_count;
     std::uint64_t fnm1_count;
+};
+
+struct RestartHeader
+{
+    RestartHeaderV1 v1;
+    std::uint64_t ur_full_count;
 };
 
 static bool writeAll(FILE* fp, const void* data, size_t bytes, const char* label)
@@ -1128,6 +1134,105 @@ static bool readDeviceBytes(FILE* fp, void* d_ptr, size_t bytes, const char* lab
     return true;
 }
 
+__global__
+void k_restart_reconstruct_uc_velocity_from_om2(const cplx* om2,
+                                                cplx* uc_full,
+                                                const real* alfa,
+                                                const real* gamma,
+                                                int NX_half,
+                                                int NZ,
+                                                int NK_full,
+                                                int NZ_full)
+{
+    const int ix = blockIdx.x * blockDim.x + threadIdx.x;
+    const int iz = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (ix >= NX_half || iz >= NZ) {
+        return;
+    }
+
+    const int idx_om = iz * NX_half + ix;
+    const cplx om = om2[idx_om];
+    const float ax = alfa[ix];
+    const float gz = gamma[iz];
+    const float K2 = ax * ax + gz * gz;
+    const int Zf = iz + 1;
+
+    cplx out1;
+    cplx out2;
+    out1.x = out1.y = 0.0f;
+    out2.x = out2.y = 0.0f;
+
+    if (ix >= 1) {
+        const float invK2 = 1.0f / (K2 + 1.0e-30f);
+        const cplx v{om.x * invK2, om.y * invK2};
+
+        const float gx = gz * v.x;
+        const float gy = gz * v.y;
+        out1.x =  gy;
+        out1.y = -gx;
+
+        const float axr = ax * v.x;
+        const float axi = ax * v.y;
+        out2.x = -axi;
+        out2.y =  axr;
+    } else {
+        const float invG = (Zf >= 2 && fabsf(gz) > 0.0f) ? (1.0f / gz) : 0.0f;
+        const cplx v{om.x * invG, om.y * invG};
+        out1.x =  v.y;
+        out1.y = -v.x;
+    }
+
+    uc_full[UC_FULL_INDEX(ix, iz, 0, NK_full, NZ_full)] = out1;
+    uc_full[UC_FULL_INDEX(ix, iz, 1, NK_full, NZ_full)] = out2;
+}
+
+static bool reconstructUrFullFromOm2(DnsDeviceState* S)
+{
+    if (!S) return false;
+
+    const size_t uc_full_count = (size_t)S->NK_full * (size_t)S->NZ_full * 3u;
+    cudaError_t err = cudaMemset(S->d_uc_full, 0, uc_full_count * sizeof(cplx));
+    if (err != cudaSuccess) {
+        std::fprintf(stderr, "reconstructUrFullFromOm2: cudaMemset failed: %s\n",
+                     cudaGetErrorString(err));
+        return false;
+    }
+
+    const int NX_half = S->Nbase / 2;
+    const int NZ = S->Nbase;
+    dim3 block(32, 8);
+    dim3 grid((NX_half + block.x - 1) / block.x,
+              (NZ + block.y - 1) / block.y);
+    k_restart_reconstruct_uc_velocity_from_om2<<<grid, block>>>(
+        S->d_om2,
+        S->d_uc_full,
+        S->d_alfa,
+        S->d_gamma,
+        NX_half,
+        NZ,
+        S->NK_full,
+        S->NZ_full);
+
+    err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::fprintf(stderr,
+                     "reconstructUrFullFromOm2: reconstruct kernel failed: %s\n",
+                     cudaGetErrorString(err));
+        return false;
+    }
+
+    dnsCudaStep2A(S);
+    err = cudaDeviceSynchronize();
+    if (err != cudaSuccess) {
+        std::fprintf(stderr, "reconstructUrFullFromOm2: STEP2A failed: %s\n",
+                     cudaGetErrorString(err));
+        return false;
+    }
+
+    return true;
+}
+
 static bool saveRestartBin(DnsDeviceState* S, const std::string& folder)
 {
     if (!S) return false;
@@ -1140,38 +1245,39 @@ static bool saveRestartBin(DnsDeviceState* S, const std::string& folder)
     }
 
     RestartHeader h{};
-    std::snprintf(h.magic, sizeof(h.magic), "CTRB_RESTART");
-    h.version = 1;
-    h.header_bytes = (std::uint32_t)sizeof(RestartHeader);
-    h.real_bytes = (std::uint32_t)sizeof(real);
-    h.cplx_bytes = (std::uint32_t)sizeof(cplx);
-    h.Nbase = S->Nbase;
-    h.N = S->N;
-    h.NX = S->NX;
-    h.NZ = S->NZ;
-    h.NK = S->NK;
-    h.NX_full = S->NX_full;
-    h.NZ_full = S->NZ_full;
-    h.NK_full = S->NK_full;
-    h.it = S->it;
-    h.ifn = S->ifn;
-    h.Re = S->Re;
-    h.K0 = S->K0;
-    h.visc = S->visc;
-    h.t = S->t;
-    h.dt = S->dt;
-    h.cn = S->cn;
-    h.cnm1 = S->cnm1;
-    h.cflnum = S->cflnum;
-    h.cflm = S->cflm;
-    h.uc_full_count = (std::uint64_t)S->NK_full * (std::uint64_t)S->NZ_full * 3u;
-    h.om2_count = (std::uint64_t)(S->NX / 2) * (std::uint64_t)S->NZ;
-    h.fnm1_count = h.om2_count;
+    std::snprintf(h.v1.magic, sizeof(h.v1.magic), "CTRB_RESTART");
+    h.v1.version = 2;
+    h.v1.header_bytes = (std::uint32_t)sizeof(RestartHeader);
+    h.v1.real_bytes = (std::uint32_t)sizeof(real);
+    h.v1.cplx_bytes = (std::uint32_t)sizeof(cplx);
+    h.v1.Nbase = S->Nbase;
+    h.v1.N = S->N;
+    h.v1.NX = S->NX;
+    h.v1.NZ = S->NZ;
+    h.v1.NK = S->NK;
+    h.v1.NX_full = S->NX_full;
+    h.v1.NZ_full = S->NZ_full;
+    h.v1.NK_full = S->NK_full;
+    h.v1.it = S->it;
+    h.v1.ifn = S->ifn;
+    h.v1.Re = S->Re;
+    h.v1.K0 = S->K0;
+    h.v1.visc = S->visc;
+    h.v1.t = S->t;
+    h.v1.dt = S->dt;
+    h.v1.cn = S->cn;
+    h.v1.cnm1 = S->cnm1;
+    h.v1.cflnum = S->cflnum;
+    h.v1.cflm = S->cflm;
+    h.v1.uc_full_count = 0;
+    h.ur_full_count = (std::uint64_t)S->NX_full * (std::uint64_t)S->NZ_full * 3u;
+    h.v1.om2_count = (std::uint64_t)(S->NX / 2) * (std::uint64_t)S->NZ;
+    h.v1.fnm1_count = h.v1.om2_count;
 
     bool ok = writeAll(fp, &h, sizeof(h), "restart header") &&
-              writeDeviceBytes(fp, S->d_uc_full, (size_t)h.uc_full_count * sizeof(cplx), "d_uc_full") &&
-              writeDeviceBytes(fp, S->d_om2, (size_t)h.om2_count * sizeof(cplx), "d_om2") &&
-              writeDeviceBytes(fp, S->d_fnm1, (size_t)h.fnm1_count * sizeof(cplx), "d_fnm1");
+              writeDeviceBytes(fp, S->d_ur_full, (size_t)h.ur_full_count * sizeof(real), "d_ur_full") &&
+              writeDeviceBytes(fp, S->d_om2, (size_t)h.v1.om2_count * sizeof(cplx), "d_om2") &&
+              writeDeviceBytes(fp, S->d_fnm1, (size_t)h.v1.fnm1_count * sizeof(cplx), "d_fnm1");
 
     if (std::fclose(fp) != 0) {
         std::perror("saveRestartBin: fclose");
@@ -1195,55 +1301,84 @@ static bool loadRestartBin(DnsDeviceState* S, const char* path)
     }
 
     RestartHeader h{};
-    bool ok = readAll(fp, &h, sizeof(h), "restart header");
-    if (ok && std::strncmp(h.magic, "CTRB_RESTART", 12) != 0) {
+    bool ok = readAll(fp, &h.v1, sizeof(h.v1), "restart header");
+    if (ok && std::strncmp(h.v1.magic, "CTRB_RESTART", 12) != 0) {
         std::fprintf(stderr, "loadRestartBin: bad magic in %s\n", path);
         ok = false;
     }
-    if (ok && (h.version != 1 ||
-               h.header_bytes != sizeof(RestartHeader) ||
-               h.real_bytes != sizeof(real) ||
-               h.cplx_bytes != sizeof(cplx))) {
+    if (ok && h.v1.version == 2) {
+        if (h.v1.header_bytes != sizeof(RestartHeader)) {
+            std::fprintf(stderr, "loadRestartBin: unsupported restart header size in %s\n", path);
+            ok = false;
+        } else {
+            unsigned char* tail = reinterpret_cast<unsigned char*>(&h) + sizeof(h.v1);
+            ok = readAll(fp, tail, sizeof(h) - sizeof(h.v1), "restart header v2");
+        }
+    }
+    if (ok && (h.v1.version < 1 ||
+               h.v1.version > 2 ||
+               (h.v1.version == 1 && h.v1.header_bytes != sizeof(RestartHeaderV1)) ||
+               h.v1.real_bytes != sizeof(real) ||
+               h.v1.cplx_bytes != sizeof(cplx))) {
         std::fprintf(stderr, "loadRestartBin: unsupported restart format in %s\n", path);
         ok = false;
     }
-    if (ok && (h.Nbase != S->Nbase ||
-               h.N != S->N ||
-               h.NX != S->NX ||
-               h.NZ != S->NZ ||
-               h.NK != S->NK ||
-               h.NX_full != S->NX_full ||
-               h.NZ_full != S->NZ_full ||
-               h.NK_full != S->NK_full)) {
+    if (ok && (h.v1.Nbase != S->Nbase ||
+               h.v1.N != S->N ||
+               h.v1.NX != S->NX ||
+               h.v1.NZ != S->NZ ||
+               h.v1.NK != S->NK ||
+               h.v1.NX_full != S->NX_full ||
+               h.v1.NZ_full != S->NZ_full ||
+               h.v1.NK_full != S->NK_full)) {
         std::fprintf(stderr, "loadRestartBin: restart dimensions do not match this run\n");
         ok = false;
     }
 
     const std::uint64_t uc_full_count = (std::uint64_t)S->NK_full * (std::uint64_t)S->NZ_full * 3u;
+    const std::uint64_t ur_full_count = (std::uint64_t)S->NX_full * (std::uint64_t)S->NZ_full * 3u;
     const std::uint64_t om_count = (std::uint64_t)(S->NX / 2) * (std::uint64_t)S->NZ;
-    if (ok && (h.uc_full_count != uc_full_count ||
-               h.om2_count != om_count ||
-               h.fnm1_count != om_count)) {
+    const bool has_uc_payload = h.v1.uc_full_count != 0;
+    if (ok && ((h.v1.version == 1 && h.v1.uc_full_count != uc_full_count) ||
+               (h.v1.version >= 2 && has_uc_payload && h.v1.uc_full_count != uc_full_count) ||
+               (h.v1.version >= 2 && h.ur_full_count != ur_full_count) ||
+               h.v1.om2_count != om_count ||
+               h.v1.fnm1_count != om_count)) {
         std::fprintf(stderr, "loadRestartBin: restart array sizes do not match this run\n");
         ok = false;
     }
 
     if (ok) {
-        S->Re = h.Re;
-        S->K0 = h.K0;
-        S->visc = h.visc;
-        S->t = h.t;
-        S->dt = h.dt;
-        S->cn = h.cn;
-        S->cnm1 = h.cnm1;
-        S->cflnum = h.cflnum;
-        S->cflm = h.cflm;
-        S->it = h.it;
-        S->ifn = h.ifn;
+        S->Re = h.v1.Re;
+        S->K0 = h.v1.K0;
+        S->visc = h.v1.visc;
+        S->t = h.v1.t;
+        S->dt = h.v1.dt;
+        S->cn = h.v1.cn;
+        S->cnm1 = h.v1.cnm1;
+        S->cflnum = h.v1.cflnum;
+        S->cflm = h.v1.cflm;
+        S->it = h.v1.it;
+        S->ifn = h.v1.ifn;
 
-        ok = readDeviceBytes(fp, S->d_uc_full, (size_t)h.uc_full_count * sizeof(cplx), "d_uc_full") &&
-             readDeviceBytes(fp, S->d_om2, (size_t)h.om2_count * sizeof(cplx), "d_om2") &&
-             readDeviceBytes(fp, S->d_fnm1, (size_t)h.fnm1_count * sizeof(cplx), "d_fnm1");
+        ok = true;
+        if (h.v1.version == 1 || has_uc_payload) {
+            ok = readDeviceBytes(fp, S->d_uc_full, (size_t)h.v1.uc_full_count * sizeof(cplx), "d_uc_full");
+        }
+        if (ok && h.v1.version >= 2) {
+            ok = readDeviceBytes(fp, S->d_ur_full, (size_t)h.ur_full_count * sizeof(real), "d_ur_full");
+        }
+        if (ok) {
+            ok = readDeviceBytes(fp, S->d_om2, (size_t)h.v1.om2_count * sizeof(cplx), "d_om2") &&
+                 readDeviceBytes(fp, S->d_fnm1, (size_t)h.v1.fnm1_count * sizeof(cplx), "d_fnm1");
+        }
+        if (ok && h.v1.version == 1) {
+            if (!reconstructUrFullFromOm2(S)) {
+                ok = false;
+            } else {
+                std::printf("[LOAD] Reconstructed d_ur_full from v1 restart OM2\n");
+            }
+        }
     }
 
     if (std::fclose(fp) != 0) {
@@ -1252,7 +1387,8 @@ static bool loadRestartBin(DnsDeviceState* S, const char* path)
     }
 
     if (ok) {
-        std::printf("[LOAD] Loaded restart binary %s at iteration %d\n", path, S->it);
+        std::printf("[LOAD] Loaded restart binary %s at iteration %d (v%u)\n",
+                    path, S->it, h.v1.version);
     }
     return ok;
 }
@@ -1533,7 +1669,7 @@ int main(int argc, char** argv)
     int   N      = 512;
     real  Re     = (real)10000.0f;
     real  K0     = (real)10.0f;
-    int   STEPS  = 20001;
+    int   STEPS  = 1001;
     real  CFL    = (real)0.25f;
     int   UPDATE = 100;
     bool  ADAPT_VISC = false;

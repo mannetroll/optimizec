@@ -164,6 +164,17 @@ bool dnsCudaCreate(DnsDeviceState *S, int N, real Re, real K0)
                (size_t)S->cflm_num_blocks * sizeof(real),
                "d_cflm_scratch")) return fail();
 
+    const size_t sigma_total = (size_t)S->NX_full * (size_t)S->NZ_full;
+    const size_t sigma_min_blocks = (sigma_total + 255u) / 256u;
+    S->sigma_num_blocks = (int)std::min<size_t>(4096u,
+                                                std::max<size_t>(1u, sigma_min_blocks));
+    if (!alloc(reinterpret_cast<void**>(&S->d_sigma_minmax),
+               (size_t)S->sigma_num_blocks * 2u * sizeof(real),
+               "d_sigma_minmax")) return fail();
+    if (!alloc(reinterpret_cast<void**>(&S->d_sigma_sums),
+               (size_t)S->sigma_num_blocks * 2u * sizeof(unsigned long long),
+               "d_sigma_sums")) return fail();
+
     S->step3_divxz = 1.0f / (float(S->NX_full) * float(S->NZ_full));
 
     // ------------------------------------------------------------------
@@ -272,6 +283,8 @@ void dnsCudaDestroy(DnsDeviceState *S)
 
     // CFLM reduction scratch
     cudaFree(S->d_cflm_scratch);
+    cudaFree(S->d_sigma_minmax);
+    cudaFree(S->d_sigma_sums);
 
     if (S->owns_plans) {
         if (S->plan_full_c2r_x) cufftDestroy(S->plan_full_c2r_x);

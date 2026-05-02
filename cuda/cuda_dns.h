@@ -79,6 +79,11 @@ struct DnsDeviceState
     real *d_cflm_scratch;
     int   cflm_num_blocks;
 
+    // Per-block display sigma reduction scratch.
+    real *d_sigma_minmax;              // sigma_num_blocks mins, then maxes
+    unsigned long long *d_sigma_sums;  // sigma_num_blocks sums, then sumsq
+    int   sigma_num_blocks;
+
     // STEP3 scalar.
     real  step3_divxz;        // scalar DIVXZ = 1/(NX_full*NZ_full)
 

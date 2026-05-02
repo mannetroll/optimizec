@@ -20,6 +20,7 @@
 #include <cerrno>
 #include <csignal>
 #include <cmath>
+#include <cfloat>
 #include <cstdint>
 #include <cctype>
 #include <cstring>
@@ -600,9 +601,181 @@ static bool saveEnergySpectrumUvCsv(DnsDeviceState* S, const char* filename)
     return true;
 }
 
+__global__
+void k_display_sigma_minmax(const float* field,
+                            size_t n,
+                            float* block_mins,
+                            float* block_maxs)
+{
+    __shared__ float s_min[256];
+    __shared__ float s_max[256];
+
+    const int tid = threadIdx.x;
+    const size_t stride = (size_t)blockDim.x * (size_t)gridDim.x;
+    size_t idx = (size_t)blockIdx.x * (size_t)blockDim.x + (size_t)tid;
+
+    float local_min = FLT_MAX;
+    float local_max = -FLT_MAX;
+    while (idx < n) {
+        const float v = field[idx];
+        local_min = fminf(local_min, v);
+        local_max = fmaxf(local_max, v);
+        idx += stride;
+    }
+
+    s_min[tid] = local_min;
+    s_max[tid] = local_max;
+    __syncthreads();
+
+    for (int offset = blockDim.x / 2; offset > 0; offset >>= 1) {
+        if (tid < offset) {
+            s_min[tid] = fminf(s_min[tid], s_min[tid + offset]);
+            s_max[tid] = fmaxf(s_max[tid], s_max[tid + offset]);
+        }
+        __syncthreads();
+    }
+
+    if (tid == 0) {
+        block_mins[blockIdx.x] = s_min[0];
+        block_maxs[blockIdx.x] = s_max[0];
+    }
+}
+
+__global__
+void k_display_sigma_pixels(const float* field,
+                            size_t n,
+                            float minv,
+                            float rng,
+                            bool is_constant,
+                            unsigned long long* block_sums,
+                            unsigned long long* block_sumsq)
+{
+    __shared__ unsigned long long s_sum[256];
+    __shared__ unsigned long long s_sumsq[256];
+
+    const int tid = threadIdx.x;
+    const size_t stride = (size_t)blockDim.x * (size_t)gridDim.x;
+    size_t idx = (size_t)blockIdx.x * (size_t)blockDim.x + (size_t)tid;
+
+    unsigned long long local_sum = 0;
+    unsigned long long local_sumsq = 0;
+    while (idx < n) {
+        const float v = field[idx];
+        int pix = 128;
+        if (!is_constant) {
+            const float norm = __fdiv_rn(__fsub_rn(v, minv), rng);
+            float pixf = __fadd_rn(1.0f, __fmul_rn(norm, 254.0f));
+            if (pixf < 1.0f) pixf = 1.0f;
+            if (pixf > 255.0f) pixf = 255.0f;
+            pix = (int)pixf;
+        }
+        local_sum += (unsigned long long)pix;
+        local_sumsq += (unsigned long long)(pix * pix);
+        idx += stride;
+    }
+
+    s_sum[tid] = local_sum;
+    s_sumsq[tid] = local_sumsq;
+    __syncthreads();
+
+    for (int offset = blockDim.x / 2; offset > 0; offset >>= 1) {
+        if (tid < offset) {
+            s_sum[tid] += s_sum[tid + offset];
+            s_sumsq[tid] += s_sumsq[tid + offset];
+        }
+        __syncthreads();
+    }
+
+    if (tid == 0) {
+        block_sums[blockIdx.x] = s_sum[0];
+        block_sumsq[blockIdx.x] = s_sumsq[0];
+    }
+}
+
+static double computeDisplaySigmaGpu(DnsDeviceState* S, int comp)
+{
+    const int nx = S->NX_full;
+    const int nz = S->NZ_full;
+    const size_t plane = (size_t)nx * (size_t)nz;
+    const int blocks = S->sigma_num_blocks;
+    const float* field = S->d_ur_full + plane * (size_t)comp;
+    float* d_mins = S->d_sigma_minmax;
+    float* d_maxs = S->d_sigma_minmax + blocks;
+
+    k_display_sigma_minmax<<<blocks, 256>>>(field, plane, d_mins, d_maxs);
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::fprintf(stderr, "computeDisplaySigma: minmax launch failed: %s\n",
+                     cudaGetErrorString(err));
+        return 0.0;
+    }
+
+    std::vector<float> h_minmax((size_t)blocks * 2u);
+    err = cudaMemcpy(h_minmax.data(),
+                     S->d_sigma_minmax,
+                     h_minmax.size() * sizeof(float),
+                     cudaMemcpyDeviceToHost);
+    if (err != cudaSuccess) {
+        std::fprintf(stderr, "computeDisplaySigma: minmax copy failed: %s\n",
+                     cudaGetErrorString(err));
+        return 0.0;
+    }
+
+    float minv = h_minmax[0];
+    float maxv = h_minmax[(size_t)blocks];
+    for (int i = 1; i < blocks; ++i) {
+        minv = std::min(minv, h_minmax[(size_t)i]);
+        maxv = std::max(maxv, h_minmax[(size_t)blocks + (size_t)i]);
+    }
+
+    const float rng = maxv - minv;
+    const bool is_constant = (std::fabs(rng) <= 1.0e-12f);
+
+    unsigned long long* d_sums = S->d_sigma_sums;
+    unsigned long long* d_sumsq = S->d_sigma_sums + blocks;
+    k_display_sigma_pixels<<<blocks, 256>>>(field,
+                                            plane,
+                                            minv,
+                                            rng,
+                                            is_constant,
+                                            d_sums,
+                                            d_sumsq);
+    err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::fprintf(stderr, "computeDisplaySigma: pixel launch failed: %s\n",
+                     cudaGetErrorString(err));
+        return 0.0;
+    }
+
+    std::vector<unsigned long long> h_sums((size_t)blocks * 2u);
+    err = cudaMemcpy(h_sums.data(),
+                     S->d_sigma_sums,
+                     h_sums.size() * sizeof(unsigned long long),
+                     cudaMemcpyDeviceToHost);
+    if (err != cudaSuccess) {
+        std::fprintf(stderr, "computeDisplaySigma: sums copy failed: %s\n",
+                     cudaGetErrorString(err));
+        return 0.0;
+    }
+
+    unsigned long long sum = 0;
+    unsigned long long sum2 = 0;
+    for (int i = 0; i < blocks; ++i) {
+        sum += h_sums[(size_t)i];
+        sum2 += h_sums[(size_t)blocks + (size_t)i];
+    }
+
+    const double mean = (double)sum / (double)plane;
+    const double var = std::max(0.0, (double)sum2 / (double)plane - mean * mean);
+    return std::sqrt(var);
+}
+
 static double computeDisplaySigma(DnsDeviceState* S, int comp)
 {
     if (!S) return 0.0;
+    if (S->d_sigma_minmax && S->d_sigma_sums && S->sigma_num_blocks > 0) {
+        return computeDisplaySigmaGpu(S, comp);
+    }
 
     const int nx = S->NX_full;
     const int nz = S->NZ_full;

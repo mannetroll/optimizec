@@ -45,4 +45,4 @@
   - Do not keep changes that only improve one noisy run but lose on the 3-run average.
   - Keep default ./mem_cuda behavior and output unchanged.
   - Avoid committing disabled instrumentation unless it has no default FPS cost and helps future profiling.
-  - Report final best version, commits, and the appended optimization_log.md entries when done.
+  - Report final best version, commits, and the appended optimization_log_structural.md entries when done.

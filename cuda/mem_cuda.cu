@@ -1186,6 +1186,115 @@ static double gpuTakenMiB()
     return (totalBytes - freeBytes) / (1024.0 * 1024.0);
 }
 
+#ifndef _WIN32
+static bool readableFile(const char* path)
+{
+    FILE* fp = std::fopen(path, "r");
+    if (!fp) {
+        return false;
+    }
+    std::fclose(fp);
+    return true;
+}
+
+static std::string shellQuote(const char* s)
+{
+    std::string out = "'";
+    for (const char* p = s; p && *p; ++p) {
+        if (*p == '\'') {
+            out += "'\\''";
+        } else {
+            out += *p;
+        }
+    }
+    out += "'";
+    return out;
+}
+
+static std::string nvidiaSmiCommand()
+{
+    const char* env = std::getenv("NVIDIA_SMI");
+    if (env && env[0] != '\0') {
+        return shellQuote(env);
+    }
+
+    const char* wsl_path = "/usr/lib/wsl/lib/nvidia-smi";
+    if (readableFile(wsl_path)) {
+        return shellQuote(wsl_path);
+    }
+
+    return "nvidia-smi";
+}
+
+static void trimLineEnd(std::string& line)
+{
+    while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
+        line.pop_back();
+    }
+}
+
+static bool commandOutputLines(const std::string& command,
+                               std::vector<std::string>& lines)
+{
+    FILE* pipe = popen(command.c_str(), "r");
+    if (!pipe) {
+        return false;
+    }
+
+    char buf[1024];
+    while (std::fgets(buf, sizeof(buf), pipe)) {
+        std::string line(buf);
+        trimLineEnd(line);
+        if (!line.empty()) {
+            lines.push_back(line);
+        }
+    }
+
+    const int status = pclose(pipe);
+    return status == 0 && !lines.empty();
+}
+
+static void printGpuSnapshot(const char* phase)
+{
+    const std::string smi = nvidiaSmiCommand();
+    const std::string gpu_query =
+        smi +
+        " --query-gpu=name,persistence_mode,pstate,clocks.sm,clocks.mem,"
+        "temperature.gpu,power.draw,power.limit "
+        "--format=csv,noheader,nounits 2>/dev/null";
+
+    std::vector<std::string> lines;
+    if (!commandOutputLines(gpu_query, lines)) {
+        std::printf("[GPU] %s: nvidia-smi unavailable\n", phase);
+        return;
+    }
+
+    std::printf("[GPU] %s fields: name, persistence, pstate, sm_clock_mhz, "
+                "mem_clock_mhz, temp_c, power_w, power_limit_w\n",
+                phase);
+    for (const std::string& line : lines) {
+        std::printf("[GPU] %s: %s\n", phase, line.c_str());
+    }
+
+    if (std::strcmp(phase, "start") == 0) {
+        lines.clear();
+        const std::string app_query =
+            smi +
+            " --query-compute-apps=pid,process_name,used_memory "
+            "--format=csv,noheader,nounits 2>/dev/null";
+        if (commandOutputLines(app_query, lines)) {
+            std::printf("[GPU] %s active compute apps: pid, process, used_memory_mib\n",
+                        phase);
+            for (const std::string& line : lines) {
+                std::printf("[GPU] %s app: %s\n", phase, line.c_str());
+            }
+        }
+    }
+}
+#else
+static void printGpuSnapshot(const char*) {}
+#endif
+
 // ---------------------------------------------------------------------
 // main() – CUDA FPS benchmark like dns_fps.f, but with CLI args
 // Usage:
@@ -1267,6 +1376,7 @@ int main(int argc, char** argv)
     if (RESTART_PATH) {
         printf(" restart=%s\n", RESTART_PATH);
     }
+    printGpuSnapshot("start");
 
     DnsDeviceState S{};
 
@@ -1320,18 +1430,44 @@ int main(int argc, char** argv)
     // -----------------------------------------------------------------
     // Timing section: STEP2B → STEP3 → STEP2A → NEXTDT
     // -----------------------------------------------------------------
-    using clock_type = std::chrono::high_resolution_clock;
-    auto tbegin = clock_type::now();
+    using clock_type = std::chrono::steady_clock;
     cudaDeviceSynchronize();  // ensure all previous work done
+    auto tbegin = clock_type::now();
     const int update_interval = UPDATE;
+    int steady_warmup_steps = update_interval;
+    const char* env_warmup_steps = std::getenv("BENCH_WARMUP_STEPS");
+    if (env_warmup_steps && env_warmup_steps[0] != '\0') {
+        steady_warmup_steps = std::atoi(env_warmup_steps);
+        if (steady_warmup_steps < 0) {
+            steady_warmup_steps = 0;
+        }
+    }
     const int start_iter = S.it;
     AdaptViscState adapt_state{};
     std::vector<MetricsRow> csv_rows;
     bool interrupted = false;
     double paused_seconds = 0.0;
+    bool steady_timer_started = false;
+    int steady_start_iter = S.it;
+    double steady_start_paused_seconds = 0.0;
+    clock_type::time_point steady_begin{};
     int movie_frame_index = 0;
     const int movie_scale_f = dnsCudaMovieScaleF(N);
     std::string movie_folder;
+
+    std::printf("[BENCH] Wall-clock FPS timer starts after initial cudaDeviceSynchronize().\n");
+    if (steady_warmup_steps > 0) {
+        std::printf("[BENCH] Steady FPS will exclude the first %d completed steps "
+                    "(override with BENCH_WARMUP_STEPS).\n",
+                    steady_warmup_steps);
+    } else {
+        steady_timer_started = true;
+        steady_begin = tbegin;
+        steady_start_iter = S.it;
+        steady_start_paused_seconds = paused_seconds;
+        std::printf("[BENCH] Steady FPS timer starts immediately "
+                    "(BENCH_WARMUP_STEPS=0).\n");
+    }
 
     if (MOV) {
         movie_folder = makeMovieFolderName(N, K0, Re, CFL, update_interval);
@@ -1398,6 +1534,16 @@ int main(int argc, char** argv)
                     return 1;
                 }
                 ++movie_frame_index;
+            }
+
+            if (!steady_timer_started && it >= steady_warmup_steps) {
+                cudaDeviceSynchronize();
+                steady_begin = clock_type::now();
+                steady_start_iter = S.it;
+                steady_start_paused_seconds = paused_seconds;
+                steady_timer_started = true;
+                std::printf("[BENCH] Steady FPS timer starts after iteration %d.\n",
+                            steady_start_iter);
             }
         }
 
@@ -1490,13 +1636,35 @@ int main(int argc, char** argv)
     double elap = elapsed.count() - paused_seconds;
     const int completed_steps = S.it - start_iter;
     double fps = (elap > 0.0) ? (double(completed_steps) / elap) : 0.0;
+    double steady_elap = 0.0;
+    double steady_fps = 0.0;
+    const int steady_completed_steps = S.it - steady_start_iter;
+    if (steady_timer_started && steady_completed_steps > 0) {
+        std::chrono::duration<double> steady_elapsed = tend - steady_begin;
+        steady_elap = steady_elapsed.count() -
+                      (paused_seconds - steady_start_paused_seconds);
+        steady_fps = (steady_elap > 0.0)
+                     ? (double(steady_completed_steps) / steady_elap)
+                     : 0.0;
+    }
 
     printf(" Frames per second (FPS)            = %12.7f\n", fps);
+    if (steady_timer_started && steady_completed_steps > 0) {
+        printf(" Steady frames per second (FPS)     = %12.7f  "
+               "(%d steps after warmup)\n",
+               steady_fps,
+               steady_completed_steps);
+    }
 
     printf(" Elapsed time (s): %12.7f\n", elap);
     printf(" FPS: %12.7f\n", fps);
+    if (steady_timer_started && steady_completed_steps > 0) {
+        printf(" Steady elapsed time (s): %12.7f\n", steady_elap);
+        printf(" Steady FPS: %12.7f\n", steady_fps);
+    }
     printf(" Final T=%12.7f  CN=%12.7f  DT=%12.7f  VISC=%12.7f\n",
            S.t, S.cn, S.dt, S.visc);
+    printGpuSnapshot("end");
     std::fflush(stdout);
 
     if (interrupted) {

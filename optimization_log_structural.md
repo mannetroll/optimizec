@@ -81,3 +81,6 @@
 81 | carry STEP2B uiuj row offset through z loop | 5.255 -> 5.247 | reverted
 82 | grid-stride STEP2A high-kx zero only | 5.255 -> 5.256 | kept
 83 | raise STEP2A high-kx zero grid-stride z cap to 8192 | 5.256 -> 5.263 | kept
+84 | raise STEP2A high-kx zero grid-stride z cap to 16384 | 5.263 -> 5.255 | reverted
+85 | use STEP2A high-kx zero grid-stride z cap 6144 | 5.263 -> 5.256 | reverted
+86 | use 512-thread STEP2A high-kx zero grid-stride blocks | 5.263 -> 5.269 | kept

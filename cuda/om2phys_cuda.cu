@@ -25,6 +25,21 @@ void k_clear_uc3_full(cplx *uc_full, int NK_full, int NZ_full)
     uc_full[idx].y = 0.0f;
 }
 
+__global__
+void k_clear_uc3_highkx(cplx *uc_full,
+                        int NX,
+                        int NK_full,
+                        int NZ_full)
+{
+    const int kx = NX / 2 + blockIdx.x * blockDim.x + threadIdx.x;
+    const int z  = blockIdx.y * blockDim.y + threadIdx.y;
+    if (kx >= NK_full || z >= NZ_full) return;
+
+    size_t idx = UC_FULL_INDEX(kx, z, 2, NK_full, NZ_full);
+    uc_full[idx].x = 0.0f;
+    uc_full[idx].y = 0.0f;
+}
+
 // ---------------------------------------------------------------------
 // Kernel 2: copy compact OM2(kx,z) → UC_full(kx,z,3) for kx < NX/2, z < N
 //   Fortran: UC(X,Z,3) = OM2(X,Z),  X=1..NX/2, Z=1..NZ
@@ -45,6 +60,33 @@ void k_copy_om2_to_uc3(const cplx *om2,
     size_t idx_uc3 = UC_FULL_INDEX(ix, iz, 2, NK_full, NZ_full);
 
     uc_full[idx_uc3] = om2[idx_om];
+}
+
+__global__
+void k_copy_om2_to_uc3_reshuffled(const cplx *om2,
+                                  cplx       *uc_full,
+                                  int NX, int NZ,
+                                  int NK_full, int NZ_full)
+{
+    int ix = blockIdx.x * blockDim.x + threadIdx.x;
+    int iz = blockIdx.y * blockDim.y + threadIdx.y;
+
+    const int NX2 = NX / 2;
+    const int NZ2 = NZ / 2;
+    if (ix >= NX2 || iz >= NZ2) return;
+
+    const int z_mid = iz + NZ2;
+    const int z_top = iz + NZ;
+
+    const cplx low = om2[iz * NX2 + ix];
+    const cplx top = om2[z_mid * NX2 + ix];
+
+    uc_full[UC_FULL_INDEX(ix, iz, 2, NK_full, NZ_full)] = low;
+    uc_full[UC_FULL_INDEX(ix, z_top, 2, NK_full, NZ_full)] = top;
+
+    size_t idx_mid = UC_FULL_INDEX(ix, z_mid, 2, NK_full, NZ_full);
+    uc_full[idx_mid].x = 0.0f;
+    uc_full[idx_mid].y = 0.0f;
 }
 
 // ---------------------------------------------------------------------
@@ -100,20 +142,21 @@ void dnsCudaOm2Phys(DnsDeviceState *S)
     const int NZ_full  = S->NZ_full;  // 3N/2
     const int NK_full  = S->NK_full;  // 3N/4+1
 
-    // 1) Clear UC_full(:,:,3)
+    // 1) Clear only the high-kx region that remains zero after setup.
     {
         dim3 block(16, 16);
-        dim3 grid((NK_full + block.x - 1) / block.x,
+        const int high_kx = NK_full - NX / 2;
+        dim3 grid((high_kx + block.x - 1) / block.x,
                   (NZ_full + block.y - 1) / block.y);
-        k_clear_uc3_full<<<grid, block>>>(S->d_uc_full, NK_full, NZ_full);
+        k_clear_uc3_highkx<<<grid, block>>>(S->d_uc_full, NX, NK_full, NZ_full);
     }
 
-    // 2) Copy compact OM2 → low band of UC_full(:,:,3)
+    // 2) Copy compact OM2 directly into its final reshuffled bands.
     {
         dim3 block(16, 16);
         dim3 grid((NX/2 + block.x - 1) / block.x,
-                  (NZ    + block.y - 1) / block.y);
-        k_copy_om2_to_uc3<<<grid, block>>>(
+                  (NZ/2 + block.y - 1) / block.y);
+        k_copy_om2_to_uc3_reshuffled<<<grid, block>>>(
             S->d_om2,
             S->d_uc_full,
             NX, NZ,
@@ -121,19 +164,7 @@ void dnsCudaOm2Phys(DnsDeviceState *S)
         );
     }
 
-    // 3) Z-reshuffle like the Fortran loop 210/220
-    {
-        dim3 block(16, 16);
-        dim3 grid((NX/2      + block.x - 1) / block.x,
-                  (NZ/2      + block.y - 1) / block.y);
-        k_reshuffle_om2_z<<<grid, block>>>(
-            S->d_uc_full,
-            NX, NZ,
-            NK_full, NZ_full
-        );
-    }
-
-    // 4) Inverse FFT: UC_full(:,:,3) → UR_full(:,:,3)
+    // 3) Inverse FFT: UC_full(:,:,3) → UR_full(:,:,3)
 
     const size_t plane_cplx = (size_t)NK_full * NZ_full;
     const size_t plane_real = (size_t)NX_full * NZ_full;

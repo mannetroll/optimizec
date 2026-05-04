@@ -63,3 +63,5 @@
 63 | clear OM2PHYS comp-2 spectrum with cudaMemsetAsync | 5.205 -> 5.203 | reverted
 64 | use cufftMakePlanMany64 for OM2PHYS one-component C2R plan | 5.205 -> 5.204 | reverted
 65 | cap CFLM reduction grid with grid-stride scan for N=16384 | 5.205 -> 5.229 | kept
+66 | cuFFT load callback for STEP2B uiuj build | 5.229 -> unsupported | reverted
+67 | sparse OM2PHYS setup avoiding full comp-2 clear | 5.229 -> 5.245 | kept

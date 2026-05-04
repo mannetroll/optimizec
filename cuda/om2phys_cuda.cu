@@ -40,6 +40,25 @@ void k_clear_uc3_highkx(cplx *uc_full,
     uc_full[idx].y = 0.0f;
 }
 
+__global__
+void k_clear_uc3_highkx_gridstride(cplx *uc_full,
+                                   int NX,
+                                   int NK_full,
+                                   int NZ_full)
+{
+    const int nx_half = NX / 2;
+    const int high_kx = NK_full - nx_half;
+    const int off0 = blockIdx.x * blockDim.x + threadIdx.x;
+    if (off0 >= high_kx) return;
+
+    for (int z = blockIdx.y; z < NZ_full; z += gridDim.y) {
+        const int kx = nx_half + off0;
+        size_t idx = UC_FULL_INDEX(kx, z, 2, NK_full, NZ_full);
+        uc_full[idx].x = 0.0f;
+        uc_full[idx].y = 0.0f;
+    }
+}
+
 // ---------------------------------------------------------------------
 // Kernel 2: copy compact OM2(kx,z) → UC_full(kx,z,3) for kx < NX/2, z < N
 //   Fortran: UC(X,Z,3) = OM2(X,Z),  X=1..NX/2, Z=1..NZ
@@ -144,11 +163,12 @@ void dnsCudaOm2Phys(DnsDeviceState *S)
 
     // 1) Clear only the high-kx region that remains zero after setup.
     {
-        dim3 block(16, 16);
+        dim3 block(256);
         const int high_kx = NK_full - NX / 2;
         dim3 grid((high_kx + block.x - 1) / block.x,
-                  (NZ_full + block.y - 1) / block.y);
-        k_clear_uc3_highkx<<<grid, block>>>(S->d_uc_full, NX, NK_full, NZ_full);
+                  (NZ_full < 1024) ? NZ_full : 1024);
+        k_clear_uc3_highkx_gridstride<<<grid, block>>>(
+            S->d_uc_full, NX, NK_full, NZ_full);
     }
 
     // 2) Copy compact OM2 directly into its final reshuffled bands.

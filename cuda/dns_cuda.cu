@@ -491,13 +491,16 @@ void k_cflm_reduce_ur_full(const float *ur_full, size_t plane,
 
     int tid = threadIdx.x;
     size_t idx = (size_t)blockIdx.x * (size_t)blockDim.x + (size_t)tid;
+    const size_t stride = (size_t)blockDim.x * (size_t)gridDim.x;
 
     float m = 0.0f;
-    if (idx < plane) {
+    while (idx < plane) {
         float u = fabsf(ur_full[0 * plane + idx]);
         float w = fabsf(ur_full[1 * plane + idx]);
         // IEEE-compliant division, bypassing --use_fast_math approximation
-        m = __fadd_rn(__fdiv_rn(u, dx), __fdiv_rn(w, dz));
+        float adv = __fadd_rn(__fdiv_rn(u, dx), __fdiv_rn(w, dz));
+        m = fmaxf(m, adv);
+        idx += stride;
     }
 
     // warp-level max
@@ -526,7 +529,8 @@ static float gpu_compute_cflm(DnsDeviceState *S, float dx, float dz)
 {
     const size_t plane = (size_t)S->NX_full * (size_t)S->NZ_full;
     const int block = 256;
-    const int grid  = (int)((plane + (size_t)block - 1) / (size_t)block);
+    const int full_grid = (int)((plane + (size_t)block - 1) / (size_t)block);
+    const int grid = std::min(full_grid, 4096);
 
     k_cflm_reduce_ur_full<<<grid, block>>>(
         S->d_ur_full, plane, dx, dz, S->d_cflm_scratch);

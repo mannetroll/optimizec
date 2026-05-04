@@ -58,3 +58,8 @@
 58 | retry 96x2 STEP2A prepare blocks for N=16384 | 5.445 -> 5.446 | kept
 59 | retry dense null-embed STEP2B forward R2C plan for N=16384 | 5.446 -> 5.446 | reverted
 60 | use explicit nonblocking stream for solver kernels and cuFFT plans | 5.446 -> output changed | reverted
+61 | explicit CUFFT_WORKAREA_PERFORMANCE policy for 2D plans | 5.205 -> unsupported | reverted
+62 | default-stream stable-step CUDA graph replay | 5.205 -> output changed | reverted
+63 | clear OM2PHYS comp-2 spectrum with cudaMemsetAsync | 5.205 -> 5.203 | reverted
+64 | use cufftMakePlanMany64 for OM2PHYS one-component C2R plan | 5.205 -> 5.204 | reverted
+65 | cap CFLM reduction grid with grid-stride scan for N=16384 | 5.205 -> 5.229 | kept

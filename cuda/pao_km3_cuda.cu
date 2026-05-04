@@ -203,7 +203,7 @@ bool dnsCudaPaoHostInit(DnsDeviceState *S)
     // PAO-k^-3 start spectrum:
     //   keep the PAO divergence-free relation, but redistribute each
     //   integer shell toward E(k) ~ k^-3 through k/k_Nyquist <= 1.
-    //   This mirrors turbo_simulator_km3.py, including deterministic
+    //   This mirrors turbo_simulator.py, including deterministic
     //   per-mode jitter and hash phases.
     // ------------------------------------------------------------------
     {

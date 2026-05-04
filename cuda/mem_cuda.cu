@@ -283,7 +283,7 @@ static std::string makeMovieFolderName(int N,
 static std::string makeMovieFramePath(const std::string& folder, int frame_index)
 {
     char name[64];
-    std::snprintf(name, sizeof(name), "omega_inferno_%04d.png", frame_index);
+    std::snprintf(name, sizeof(name), "omega_inferno_%05d.png", frame_index);
     return joinPath(folder, name);
 }
 
@@ -1838,7 +1838,7 @@ int main(int argc, char** argv)
             return 1;
         }
         movie_frame_index = findLastMovieFrameIndex(movie_folder);
-        std::printf("[MOV] Saving omega_inferno_%%04d.png every %d steps to %s (F=%d, next=%04d)\n",
+        std::printf("[MOV] Saving omega_inferno_%%05d.png every %d steps to %s (F=%d, next=%05d)\n",
                     update_interval,
                     movie_folder.c_str(),
                     movie_scale_f,

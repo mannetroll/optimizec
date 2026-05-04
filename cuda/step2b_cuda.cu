@@ -239,7 +239,7 @@ void dnsCudaStep2B(DnsDeviceState *S)
     // 1) Build uiuj (UR(:,:,0..2) = u^2, w^2, u*w)
     dim3 block(256);
     dim3 grid(((NX_full / 2) + block.x - 1) / block.x,
-              (NZ_full < 2048) ? NZ_full : 2048);
+              (NZ_full < 4096) ? NZ_full : 4096);
 
     dnsCudaPhaseTimingBegin(DNS_PHASE_STEP2B_UIUJ);
     k_step2b_build_uiuj_vec2_gridstride<<<grid, block>>>(S->d_ur_full,

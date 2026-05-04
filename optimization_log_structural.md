@@ -71,3 +71,4 @@
 71 | grid-stride STEP2A prepare kernels | 5.249 -> 5.227 | reverted
 72 | grid-stride STEP3 fused kernel | 5.249 -> 5.238 | reverted
 73 | raise STEP2B uiuj grid-stride z cap to 2048 | 5.249 -> 5.252 | kept
+74 | raise STEP2B uiuj grid-stride z cap to 4096 | 5.252 -> 5.253 | kept

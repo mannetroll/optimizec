@@ -133,6 +133,45 @@ void k_step2b_build_uiuj_vec2(real *ur_full,
     w_row[x2] = ww;
 }
 
+__global__
+void k_step2b_build_uiuj_vec2_gridstride(real *ur_full,
+                                         int NX_full,
+                                         int NZ_full)
+{
+    const int x2 = blockIdx.x * blockDim.x + threadIdx.x;
+    const int NX_pairs = NX_full / 2;
+    if (x2 >= NX_pairs)
+        return;
+
+    const size_t plane = (size_t)NX_full * (size_t)NZ_full;
+    for (int z = blockIdx.y; z < NZ_full; z += gridDim.y) {
+        const size_t row = (size_t)z * (size_t)NX_full;
+
+        float2 *u_row  = reinterpret_cast<float2*>(ur_full + row);
+        float2 *w_row  = reinterpret_cast<float2*>(ur_full + plane + row);
+        float2 *uw_row = reinterpret_cast<float2*>(ur_full + 2 * plane + row);
+
+        float2 u = u_row[x2];
+        float2 w = w_row[x2];
+
+        float2 uw;
+        uw.x = u.x * w.x;
+        uw.y = u.y * w.y;
+
+        float2 uu;
+        uu.x = u.x * u.x;
+        uu.y = u.y * u.y;
+
+        float2 ww;
+        ww.x = w.x * w.x;
+        ww.y = w.y * w.y;
+
+        uw_row[x2] = uw;
+        u_row[x2] = uu;
+        w_row[x2] = ww;
+    }
+}
+
 // ---------------------------------------------------------------------
 // Helper for UC_full indexing: [comp][z][kx]
 // ---------------------------------------------------------------------
@@ -198,14 +237,14 @@ void dnsCudaStep2B(DnsDeviceState *S)
     const int NZ_full = S->NZ_full;   // 3*N/2
 
     // 1) Build uiuj (UR(:,:,0..2) = u^2, w^2, u*w)
-    dim3 block(16, 16);
+    dim3 block(256);
     dim3 grid(((NX_full / 2) + block.x - 1) / block.x,
-              (NZ_full + block.y - 1) / block.y);
+              (NZ_full < 1024) ? NZ_full : 1024);
 
     dnsCudaPhaseTimingBegin(DNS_PHASE_STEP2B_UIUJ);
-    k_step2b_build_uiuj_vec2<<<grid, block>>>(S->d_ur_full,
-                                              NX_full,
-                                              NZ_full);
+    k_step2b_build_uiuj_vec2_gridstride<<<grid, block>>>(S->d_ur_full,
+                                                         NX_full,
+                                                         NZ_full);
     dnsCudaPhaseTimingEnd(DNS_PHASE_STEP2B_UIUJ);
 
     // 2) Full-grid forward FFT: UR_full → UC_full (3 components)

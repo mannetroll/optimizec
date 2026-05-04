@@ -66,3 +66,5 @@
 66 | cuFFT load callback for STEP2B uiuj build | 5.229 -> unsupported | reverted
 67 | sparse OM2PHYS setup avoiding full comp-2 clear | 5.229 -> 5.245 | kept
 68 | grid-stride OM2PHYS high-kx clear | 5.245 -> 5.246 | kept
+69 | grid-stride OM2PHYS copy/reshuffle | 5.246 -> 5.243 | reverted
+70 | grid-stride STEP2B uiuj build | 5.246 -> 5.249 | kept

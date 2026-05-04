@@ -87,3 +87,6 @@
 87 | use 1024-thread STEP2A high-kx zero grid-stride blocks | 5.269 -> 5.267 | reverted
 88 | use 768-thread STEP2A high-kx zero grid-stride blocks | 5.269 -> 5.266 | reverted
 89 | use x-major STEP2A reshuffle launch | 5.269 -> 5.269 | kept
+90 | use 1024-thread STEP2A x-major reshuffle blocks | 5.269 -> 5.269 | reverted
+91 | use 256-thread STEP2A x-major reshuffle blocks | 5.269 -> 5.266 | reverted
+92 | use 768-thread STEP2A x-major reshuffle blocks | 5.269 -> 5.270 | kept

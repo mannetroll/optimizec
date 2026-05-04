@@ -90,3 +90,11 @@
 90 | use 1024-thread STEP2A x-major reshuffle blocks | 5.269 -> 5.269 | reverted
 91 | use 256-thread STEP2A x-major reshuffle blocks | 5.269 -> 5.266 | reverted
 92 | use 768-thread STEP2A x-major reshuffle blocks | 5.269 -> 5.270 | kept
+93 | use 640-thread STEP2A x-major reshuffle blocks | 5.270 -> 5.267 | reverted
+94 | use 896-thread STEP2A x-major reshuffle blocks | 5.270 -> 5.265 | reverted
+95 | use 640-thread STEP2A high-kx zero grid-stride blocks | 5.270 -> 5.266 | reverted
+96 | use 384-thread STEP2A high-kx zero grid-stride blocks | 5.270 -> 5.267 | reverted
+97 | use STEP2B uiuj grid-stride z cap 6144 | 5.270 -> 5.265 | reverted
+98 | use 512-thread OM2PHYS high-kx clear grid-stride blocks | 5.270 -> 5.264 | reverted
+99 | use 128-thread OM2PHYS high-kx clear grid-stride blocks | 5.270 -> 5.268 | reverted
+100 | use x-major OM2PHYS copy/reshuffle launch | 5.270 -> 5.268 | reverted

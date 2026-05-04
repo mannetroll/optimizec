@@ -197,7 +197,7 @@ void dnsCudaStep2A_full_debug(DnsDeviceState *S)
 
         dnsCudaPhaseTimingBegin(DNS_PHASE_STEP2A_PREPARE);
         dim3 grid_zero((nx_len  + block_zero.x - 1) / block_zero.x,
-                       (NZ_full < 4096) ? NZ_full : 4096);
+                       (NZ_full < 8192) ? NZ_full : 8192);
         k_step2a_full_zero_highkx_gridstride<<<grid_zero, block_zero>>>(
             S->d_uc_full, N, NZ_full, NK_full
         );

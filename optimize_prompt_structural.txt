@@ -32,7 +32,7 @@ $ stdbuf -oL ./mem_cuda 16384 1E6 5 21 0.2 10 0 > sim_output_16384_21_gpu.txt
      <iteration> | <change> | <before> -> <after> | kept
   8. If not improved, revert the code change and log:
      <iteration> | <change> | <before> -> <after> | reverted
-  9. Continue until 10 consecutive non-kept iterations or 50 total iterations.
+  9. Continue until 10 consecutive non-kept iterations or 100 total iterations.
 
   Prioritize these structural attempts after phase timing, one at a time:
   - Proper CUDA graph replay using an explicit stream and cufftSetStream on all cuFFT plans; instantiate once, replay only when scalar parameters are stable.

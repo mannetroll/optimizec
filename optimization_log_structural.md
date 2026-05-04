@@ -68,3 +68,6 @@
 68 | grid-stride OM2PHYS high-kx clear | 5.245 -> 5.246 | kept
 69 | grid-stride OM2PHYS copy/reshuffle | 5.246 -> 5.243 | reverted
 70 | grid-stride STEP2B uiuj build | 5.246 -> 5.249 | kept
+71 | grid-stride STEP2A prepare kernels | 5.249 -> 5.227 | reverted
+72 | grid-stride STEP3 fused kernel | 5.249 -> 5.238 | reverted
+73 | raise STEP2B uiuj grid-stride z cap to 2048 | 5.249 -> 5.252 | kept

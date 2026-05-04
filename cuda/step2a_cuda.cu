@@ -132,6 +132,35 @@ void k_step2a_full_reshuffle_z(cplx *uc_full,
 }
 
 __global__
+void k_step2a_full_reshuffle_z_xmajor(cplx *uc_full,
+                                      int Nbase,
+                                      int NZ_full,
+                                      int NK_full)
+{
+    int N = Nbase;
+    const int tx = blockIdx.x * blockDim.x + threadIdx.x;
+    const int tz = blockIdx.y;
+
+    if (tx >= N / 2 || tx >= NK_full || tz >= N / 2) return;
+
+    int z_mid = tz + N / 2;
+    int z_top = tz + N;
+
+    if (z_top >= NZ_full) return;
+
+    for (int c = 0; c < 2; ++c) {
+        size_t idx_mid = UC_FULL_INDEX(tx, z_mid, c, NK_full, NZ_full);
+        size_t idx_top = UC_FULL_INDEX(tx, z_top, c, NK_full, NZ_full);
+
+        cplx v = uc_full[idx_mid];
+        uc_full[idx_top] = v;
+
+        uc_full[idx_mid].x = 0.0f;
+        uc_full[idx_mid].y = 0.0f;
+    }
+}
+
+__global__
 void k_step2a_full_prepare(cplx *uc_full,
                            int Nbase,
                            int NZ_full,
@@ -190,7 +219,7 @@ void dnsCudaStep2A_full_debug(DnsDeviceState *S)
     // 1) Dealias high-kx band and z-reshuffle low-kz strip.
     {
         dim3 block_zero(512);
-        dim3 block_shuffle(96, 2);
+        dim3 block_shuffle(512);
         int nx_start = N / 2;
         int nx_end   = 3 * N / 4;
         int nx_len   = nx_end - nx_start + 1;
@@ -203,8 +232,8 @@ void dnsCudaStep2A_full_debug(DnsDeviceState *S)
         );
 
         dim3 grid_shuffle((N / 2 + block_shuffle.x - 1) / block_shuffle.x,
-                          (N / 2 + block_shuffle.y - 1) / block_shuffle.y);
-        k_step2a_full_reshuffle_z<<<grid_shuffle, block_shuffle>>>(
+                          N / 2);
+        k_step2a_full_reshuffle_z_xmajor<<<grid_shuffle, block_shuffle>>>(
             S->d_uc_full, N, NZ_full, NK_full
         );
         dnsCudaPhaseTimingEnd(DNS_PHASE_STEP2A_PREPARE);

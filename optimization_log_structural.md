@@ -84,3 +84,6 @@
 84 | raise STEP2A high-kx zero grid-stride z cap to 16384 | 5.263 -> 5.255 | reverted
 85 | use STEP2A high-kx zero grid-stride z cap 6144 | 5.263 -> 5.256 | reverted
 86 | use 512-thread STEP2A high-kx zero grid-stride blocks | 5.263 -> 5.269 | kept
+87 | use 1024-thread STEP2A high-kx zero grid-stride blocks | 5.269 -> 5.267 | reverted
+88 | use 768-thread STEP2A high-kx zero grid-stride blocks | 5.269 -> 5.266 | reverted
+89 | use x-major STEP2A reshuffle launch | 5.269 -> 5.269 | kept

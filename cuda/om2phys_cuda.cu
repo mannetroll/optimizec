@@ -166,7 +166,7 @@ void dnsCudaOm2Phys(DnsDeviceState *S)
         dim3 block(256);
         const int high_kx = NK_full - NX / 2;
         dim3 grid((high_kx + block.x - 1) / block.x,
-                  (NZ_full < 1024) ? NZ_full : 1024);
+                  (NZ_full < 2048) ? NZ_full : 2048);
         k_clear_uc3_highkx_gridstride<<<grid, block>>>(
             S->d_uc_full, NX, NK_full, NZ_full);
     }

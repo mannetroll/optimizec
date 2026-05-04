@@ -72,3 +72,5 @@
 72 | grid-stride STEP3 fused kernel | 5.249 -> 5.238 | reverted
 73 | raise STEP2B uiuj grid-stride z cap to 2048 | 5.249 -> 5.252 | kept
 74 | raise STEP2B uiuj grid-stride z cap to 4096 | 5.252 -> 5.253 | kept
+75 | raise STEP2B uiuj grid-stride z cap to 8192 | 5.253 -> 5.246 | reverted
+76 | raise OM2PHYS high-kx clear grid-stride z cap to 2048 | 5.253 -> 5.255 | kept

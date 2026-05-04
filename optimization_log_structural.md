@@ -74,3 +74,9 @@
 74 | raise STEP2B uiuj grid-stride z cap to 4096 | 5.252 -> 5.253 | kept
 75 | raise STEP2B uiuj grid-stride z cap to 8192 | 5.253 -> 5.246 | reverted
 76 | raise OM2PHYS high-kx clear grid-stride z cap to 2048 | 5.253 -> 5.255 | kept
+77 | raise OM2PHYS high-kx clear grid-stride z cap to 4096 | 5.255 -> 5.251 | reverted
+78 | use STEP2B uiuj grid-stride z cap 3072 | 5.255 -> 5.251 | reverted
+79 | use OM2PHYS high-kx clear grid-stride z cap 1536 | 5.255 -> 5.252 | reverted
+80 | use 512-thread STEP2B uiuj grid-stride blocks | 5.255 -> 5.253 | reverted
+81 | carry STEP2B uiuj row offset through z loop | 5.255 -> 5.247 | reverted
+82 | grid-stride STEP2A high-kx zero only | 5.255 -> 5.256 | kept

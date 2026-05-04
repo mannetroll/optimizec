@@ -55,6 +55,32 @@ void k_step2a_full_zero_highkx(cplx *uc_full,
     }
 }
 
+__global__
+void k_step2a_full_zero_highkx_gridstride(cplx *uc_full,
+                                          int Nbase,
+                                          int NZ_full,
+                                          int NK_full)
+{
+    int N = Nbase;
+    const int nx_start = N / 2;
+    const int nx_end   = 3 * N / 4;
+    const int nx_len   = nx_end - nx_start + 1;
+
+    const int tx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tx >= nx_len) return;
+
+    const int kx = nx_start + tx;
+    if (kx >= NK_full) return;
+
+    for (int tz = blockIdx.y; tz < NZ_full; tz += gridDim.y) {
+        for (int c = 0; c < 2; ++c) {
+            size_t idx = UC_FULL_INDEX(kx, tz, c, NK_full, NZ_full);
+            uc_full[idx].x = 0.0f;
+            uc_full[idx].y = 0.0f;
+        }
+    }
+}
+
 // Z-reshuffle on UC_full for low-kz strip
 // Fortran (1-based):
 //   DO I=1,2
@@ -163,21 +189,22 @@ void dnsCudaStep2A_full_debug(DnsDeviceState *S)
 
     // 1) Dealias high-kx band and z-reshuffle low-kz strip.
     {
-        dim3 block(96, 2);
+        dim3 block_zero(256);
+        dim3 block_shuffle(96, 2);
         int nx_start = N / 2;
         int nx_end   = 3 * N / 4;
         int nx_len   = nx_end - nx_start + 1;
 
         dnsCudaPhaseTimingBegin(DNS_PHASE_STEP2A_PREPARE);
-        dim3 grid_zero((nx_len  + block.x - 1) / block.x,
-                       (NZ_full + block.y - 1) / block.y);
-        k_step2a_full_zero_highkx<<<grid_zero, block>>>(
+        dim3 grid_zero((nx_len  + block_zero.x - 1) / block_zero.x,
+                       (NZ_full < 4096) ? NZ_full : 4096);
+        k_step2a_full_zero_highkx_gridstride<<<grid_zero, block_zero>>>(
             S->d_uc_full, N, NZ_full, NK_full
         );
 
-        dim3 grid_shuffle((N / 2 + block.x - 1) / block.x,
-                          (N / 2 + block.y - 1) / block.y);
-        k_step2a_full_reshuffle_z<<<grid_shuffle, block>>>(
+        dim3 grid_shuffle((N / 2 + block_shuffle.x - 1) / block_shuffle.x,
+                          (N / 2 + block_shuffle.y - 1) / block_shuffle.y);
+        k_step2a_full_reshuffle_z<<<grid_shuffle, block_shuffle>>>(
             S->d_uc_full, N, NZ_full, NK_full
         );
         dnsCudaPhaseTimingEnd(DNS_PHASE_STEP2A_PREPARE);
